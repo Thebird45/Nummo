@@ -5,15 +5,21 @@ import {
   createInvoiceFromSale,
   getInvoiceById,
   getInvoicesByBusiness,
+  markInvoiceSent,
   updateInvoiceDianStatus
 } from "../models/invoiceModel.js";
 import { sendInvoiceToDian } from "../services/dianService.js";
-import { buildInvoicePdf } from "../services/invoicePdf.js";
+import { sendMail } from "../services/emailService.js";
+import { buildInvoicePdf, buildInvoicePdfBuffer } from "../services/invoicePdf.js";
 
 const router = express.Router();
 
 const createSchema = z.object({
   sale_id: z.string().uuid("sale_id invalido")
+});
+
+const sendSchema = z.object({
+  correo: z.string().trim().email("Correo invalido").optional()
 });
 
 const isUuid = (value) => z.string().uuid().safeParse(value).success;
@@ -89,6 +95,54 @@ router.get("/:id/pdf", requireAuth, async (req, res, next) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     return buildInvoicePdf(factura).pipe(res);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/enviar", requireAuth, async (req, res, next) => {
+  try {
+    const payload = sendSchema.parse(req.body);
+    const factura = isUuid(req.params.id)
+      ? await getInvoiceById(req.params.id, req.user.businessId)
+      : null;
+    if (!factura) {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+
+    if (!factura.dian_payload) {
+      return res.status(409).json({ message: "Esta factura no tiene datos para generar el PDF" });
+    }
+
+    const correo = payload.correo || factura.customer_email;
+    if (!correo) {
+      return res.status(400).json({ message: "La factura no tiene correo; indica a donde enviarla" });
+    }
+
+    const codigo = `${factura.prefijo}-${factura.numero}`;
+    const { emisor, cliente } = factura.dian_payload;
+    const pdf = await buildInvoicePdfBuffer(factura);
+
+    let simulado;
+    try {
+      ({ simulado } = await sendMail({
+        to: correo,
+        subject: `Factura ${codigo} de ${emisor.nombre}`,
+        text: `Hola ${cliente.nombre},\n\nAdjuntamos la factura ${codigo} de ${emisor.nombre}.\n\nGracias por tu compra.`,
+        attachments: [{ filename: `factura-${codigo}.pdf`, content: pdf, contentType: "application/pdf" }]
+      }));
+    } catch (mailError) {
+      console.error(mailError);
+      return res.status(502).json({ message: "No se pudo enviar el correo. Revisa la configuracion SMTP" });
+    }
+
+    const envio = await markInvoiceSent(factura.id, correo);
+
+    return res.status(200).json({
+      message: simulado ? `Envio simulado a ${correo} (configura SMTP para enviar de verdad)` : `Factura enviada a ${correo}`,
+      simulado,
+      ...envio
+    });
   } catch (error) {
     return next(error);
   }

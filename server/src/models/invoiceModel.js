@@ -140,6 +140,7 @@ export async function getInvoicesByBusiness(businessId) {
   const query = `
     SELECT
       id, prefijo, numero, sale_id, status, total, created_at,
+      customer_email, enviada_a, enviada_at,
       dian_payload->'cliente'->>'nombre' AS cliente_nombre
     FROM invoices
     WHERE business_id = $1
@@ -151,7 +152,9 @@ export async function getInvoicesByBusiness(businessId) {
 
 export async function getInvoiceById(id, businessId) {
   const query = `
-    SELECT id, prefijo, numero, sale_id, status, provider_reference, total, customer_email, dian_payload, created_at
+    SELECT
+      id, prefijo, numero, sale_id, status, provider_reference, total, customer_email,
+      enviada_a, enviada_at, dian_payload, created_at
     FROM invoices
     WHERE id = $1
       AND business_id = $2
@@ -159,4 +162,15 @@ export async function getInvoiceById(id, businessId) {
   `;
   const { rows } = await pool.query(query, [id, businessId]);
   return rows[0] || null;
+}
+
+export async function markInvoiceSent(id, correo) {
+  const query = `
+    UPDATE invoices
+    SET enviada_a = $1, enviada_at = NOW(), updated_at = NOW()
+    WHERE id = $2
+    RETURNING enviada_a, enviada_at
+  `;
+  const { rows } = await pool.query(query, [correo, id]);
+  return rows[0];
 }
