@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { desglosarIva } from "../services/iva.js";
 
 const PREFIJO = "FE";
 // Documento que la DIAN usa para "consumidor final"
@@ -46,7 +47,9 @@ export async function createInvoiceFromSale({ businessId, saleId }) {
 
     const itemsResult = await client.query(
       `
-      SELECT p.nombre, si.quantity AS cantidad, si.unit_price AS precio_unitario, si.subtotal
+      SELECT
+        p.nombre, si.quantity AS cantidad, si.unit_price AS precio_unitario, si.subtotal,
+        COALESCE(si.iva_tarifa, p.iva_tarifa) AS iva_tarifa
       FROM sale_items si
       JOIN productos p ON p.id = si.producto_id
       WHERE si.sale_id = $1
@@ -65,6 +68,16 @@ export async function createInvoiceFromSale({ businessId, saleId }) {
       [businessId, PREFIJO]
     );
     const numero = Number(numeroResult.rows[0].siguiente);
+
+    const iva = desglosarIva(
+      itemsResult.rows.map((item) => ({
+        nombre: item.nombre,
+        cantidad: Number(item.cantidad),
+        precio_unitario: Number(item.precio_unitario),
+        subtotal: Number(item.subtotal),
+        iva_tarifa: Number(item.iva_tarifa)
+      }))
+    );
 
     // Copia de los datos al momento de facturar: la factura no cambia si luego se editan
     const payload = {
@@ -86,12 +99,10 @@ export async function createInvoiceFromSale({ businessId, saleId }) {
         fecha: sale.created_at,
         metodo_pago: sale.payment_method
       },
-      items: itemsResult.rows.map((item) => ({
-        nombre: item.nombre,
-        cantidad: Number(item.cantidad),
-        precio_unitario: Number(item.precio_unitario),
-        subtotal: Number(item.subtotal)
-      })),
+      items: iva.items,
+      subtotal: iva.subtotal,
+      impuestos: iva.impuestos,
+      total_iva: iva.total_iva,
       total: Number(sale.total)
     };
 

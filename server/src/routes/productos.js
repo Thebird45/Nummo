@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { TARIFAS_IVA } from "../services/iva.js";
 import {
   createProduct,
   deleteProduct,
@@ -12,12 +13,17 @@ import {
 
 const router = express.Router();
 
+const ivaTarifa = z.coerce
+  .number()
+  .refine((value) => TARIFAS_IVA.includes(value), "La tarifa de IVA debe ser 0, 5 o 19");
+
 const createProductSchema = z.object({
   nombre: z.string().min(2, "El nombre es obligatorio").max(120),
   descripcion: z.string().max(400).optional().default(""),
   precio: z.coerce.number().positive("El precio debe ser mayor a 0"),
   stock: z.coerce.number().int().min(0, "El stock no puede ser negativo").default(0),
-  stock_minimo: z.coerce.number().int().min(0, "El stock minimo no puede ser negativo").default(0)
+  stock_minimo: z.coerce.number().int().min(0, "El stock minimo no puede ser negativo").default(0),
+  iva_tarifa: ivaTarifa.default(19)
 });
 
 const updateProductSchema = z.object({
@@ -25,7 +31,8 @@ const updateProductSchema = z.object({
   descripcion: z.string().max(400).optional().default(""),
   precio: z.coerce.number().positive("El precio debe ser mayor a 0"),
   stock: z.coerce.number().int().min(0, "El stock no puede ser negativo"),
-  stock_minimo: z.coerce.number().int().min(0, "El stock minimo no puede ser negativo")
+  stock_minimo: z.coerce.number().int().min(0, "El stock minimo no puede ser negativo"),
+  iva_tarifa: ivaTarifa.optional()
 });
 
 const idSchema = z.object({
@@ -68,7 +75,8 @@ router.post("/", requireAuth, async (req, res, next) => {
       descripcion: payload.descripcion,
       precio: payload.precio,
       stock: payload.stock,
-      stockMinimo: payload.stock_minimo
+      stockMinimo: payload.stock_minimo,
+      ivaTarifa: payload.iva_tarifa
     });
 
     return res.status(201).json({
@@ -91,7 +99,8 @@ router.put("/:id", requireAuth, async (req, res, next) => {
       descripcion: payload.descripcion,
       precio: payload.precio,
       stock: payload.stock,
-      stockMinimo: payload.stock_minimo
+      stockMinimo: payload.stock_minimo,
+      ivaTarifa: payload.iva_tarifa
     });
 
     if (!updated) {

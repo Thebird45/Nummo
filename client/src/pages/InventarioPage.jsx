@@ -24,7 +24,8 @@ const emptyForm = {
   descripcion: "",
   precio: "",
   stock: "0",
-  stock_minimo: "0"
+  stock_minimo: "0",
+  iva_tarifa: "19"
 };
 
 const emptyMovementForm = {
@@ -150,7 +151,8 @@ export default function InventarioPage() {
         descripcion: form.descripcion,
         precio: Number(form.precio),
         stock: Number(form.stock),
-        stock_minimo: Number(form.stock_minimo)
+        stock_minimo: Number(form.stock_minimo),
+        iva_tarifa: Number(form.iva_tarifa)
       };
 
       if (editingId) {
@@ -177,7 +179,8 @@ export default function InventarioPage() {
       descripcion: item.descripcion || "",
       precio: String(item.precio),
       stock: String(item.stock),
-      stock_minimo: String(item.stock_minimo)
+      stock_minimo: String(item.stock_minimo),
+      iva_tarifa: String(Number(item.iva_tarifa ?? 19))
     });
     setIsProductModalOpen(true);
     setMessage("");
@@ -331,7 +334,10 @@ export default function InventarioPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-slate-700 text-sm">{item.categoria || "—"}</td>
-                          <td className="px-4 py-3 font-medium text-slate-700">{formatCop(item.precio)}</td>
+                          <td className="px-4 py-3 font-medium text-slate-700">
+                            {formatCop(item.precio)}
+                            <p className="text-xs font-normal text-slate-500">IVA {Number(item.iva_tarifa ?? 19)}% incluido</p>
+                          </td>
                           <td className="px-4 py-3">
                             <span
                               className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
@@ -609,18 +615,34 @@ export default function InventarioPage() {
                 </label>
               </div>
 
-              <label className="block text-sm font-medium text-slate-700">
-                Stock mínimo
-                <input
-                  name="stock_minimo"
-                  type="number"
-                  min="0"
-                  required
-                  value={form.stock_minimo}
-                  onChange={onChange}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-                />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Stock mínimo
+                  <input
+                    name="stock_minimo"
+                    type="number"
+                    min="0"
+                    required
+                    value={form.stock_minimo}
+                    onChange={onChange}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700">
+                  IVA (incluido en el precio)
+                  <select
+                    name="iva_tarifa"
+                    value={form.iva_tarifa}
+                    onChange={onChange}
+                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
+                  >
+                    <option value="19">19 % (general)</option>
+                    <option value="5">5 %</option>
+                    <option value="0">0 % (exento/excluido)</option>
+                  </select>
+                </label>
+              </div>
 
               <div className="flex justify-end gap-2 pt-1">
                 <button

@@ -14,7 +14,7 @@ const ESTADOS = {
 
 // Devuelve el PDF como stream para enviarlo directo en la respuesta
 export function buildInvoicePdf(invoice) {
-  const { emisor, cliente, venta, items, total } = invoice.dian_payload;
+  const { emisor, cliente, venta, items, total, subtotal, impuestos } = invoice.dian_payload;
   const doc = new PDFDocument({ size: "LETTER", margin: 50 });
 
   doc.fontSize(18).font("Helvetica-Bold").text(emisor.nombre);
@@ -34,12 +34,13 @@ export function buildInvoicePdf(invoice) {
   doc.font("Helvetica").text(cliente.nombre).text(`Documento: ${cliente.documento}`);
   if (cliente.correo) doc.text(cliente.correo);
 
-  const columns = { nombre: 50, cantidad: 330, precio: 390, subtotal: 480 };
+  const columns = { nombre: 50, cantidad: 290, iva: 335, precio: 390, subtotal: 480 };
   let y = doc.moveDown(2).y;
 
   doc.font("Helvetica-Bold")
     .text("Producto", columns.nombre, y)
     .text("Cant.", columns.cantidad, y)
+    .text("IVA", columns.iva, y)
     .text("Precio", columns.precio, y)
     .text("Subtotal", columns.subtotal, y);
   y += 18;
@@ -47,22 +48,41 @@ export function buildInvoicePdf(invoice) {
 
   doc.font("Helvetica");
   for (const item of items) {
-    const rowHeight = Math.max(18, doc.heightOfString(item.nombre, { width: 270 }) + 6);
+    const rowHeight = Math.max(18, doc.heightOfString(item.nombre, { width: 230 }) + 6);
     if (y + rowHeight > 680) {
       doc.addPage();
       y = 50;
     }
 
-    doc.text(item.nombre, columns.nombre, y, { width: 270 })
+    doc.text(item.nombre, columns.nombre, y, { width: 230 })
       .text(String(item.cantidad), columns.cantidad, y)
+      .text(item.iva_tarifa != null ? `${item.iva_tarifa}%` : "—", columns.iva, y)
       .text(cop.format(item.precio_unitario), columns.precio, y)
       .text(cop.format(item.subtotal), columns.subtotal, y);
     y += rowHeight;
   }
 
   doc.moveTo(50, y).lineTo(560, y).stroke();
+  y += 10;
+
+  // Facturas anteriores al IVA no traen desglose
+  if (impuestos) {
+    const linea = (label, value) => {
+      doc.text(label, 330, y, { width: 130 }).text(value, 460, y, { align: "right", width: 100 });
+      y += 15;
+    };
+    doc.font("Helvetica").fontSize(10);
+    linea("Subtotal (sin IVA)", cop.format(subtotal));
+    for (const impuesto of impuestos) {
+      linea(`IVA ${impuesto.tarifa}% (base ${cop.format(impuesto.base)})`, cop.format(impuesto.iva));
+    }
+    y += 4;
+  }
+
   doc.font("Helvetica-Bold").fontSize(12)
-    .text(`Total: ${cop.format(total)}`, 50, y + 10, { align: "right", width: 510 });
+    .text(`Total: ${cop.format(total)}`, 50, y, { align: "right", width: 510 });
+  doc.font("Helvetica").fontSize(8)
+    .text("Precios con IVA incluido.", 50, y + 18, { align: "right", width: 510 });
 
   doc.fontSize(8).font("Helvetica").fillColor("gray")
     .text("Documento generado por Nummo.", 50, 720, { align: "center", width: 510 });

@@ -16,7 +16,7 @@ export async function createPosSale({
     const productIds = items.map((item) => item.producto_id);
     const productsResult = await client.query(
       `
-      SELECT id, nombre, precio, stock
+      SELECT id, nombre, precio, stock, iva_tarifa
       FROM productos
       WHERE business_id = $1
         AND id = ANY($2::uuid[])
@@ -46,6 +46,7 @@ export async function createPosSale({
         nombre: product.nombre,
         cantidad: item.cantidad,
         unit_price: unitPrice,
+        iva_tarifa: Number(product.iva_tarifa),
         subtotal,
         stock_final: currentStock - item.cantidad
       };
@@ -67,10 +68,10 @@ export async function createPosSale({
     for (const item of saleItems) {
       await client.query(
         `
-        INSERT INTO sale_items (sale_id, producto_id, quantity, unit_price, subtotal)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO sale_items (sale_id, producto_id, quantity, unit_price, subtotal, iva_tarifa)
+        VALUES ($1, $2, $3, $4, $5, $6)
         `,
-        [sale.id, item.producto_id, item.cantidad, item.unit_price, item.subtotal]
+        [sale.id, item.producto_id, item.cantidad, item.unit_price, item.subtotal, item.iva_tarifa]
       );
 
       await client.query(

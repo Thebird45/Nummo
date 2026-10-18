@@ -6,12 +6,13 @@ export async function createProduct({
   descripcion,
   precio,
   stock,
-  stockMinimo
+  stockMinimo,
+  ivaTarifa
 }) {
   const query = `
-    INSERT INTO productos (business_id, nombre, descripcion, precio, stock, stock_minimo)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, business_id, nombre, descripcion, precio, stock, stock_minimo, created_at
+    INSERT INTO productos (business_id, nombre, descripcion, precio, stock, stock_minimo, iva_tarifa)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING id, business_id, nombre, descripcion, precio, stock, stock_minimo, iva_tarifa, created_at
   `;
 
   const { rows } = await pool.query(query, [
@@ -20,7 +21,8 @@ export async function createProduct({
     descripcion,
     precio,
     stock,
-    stockMinimo
+    stockMinimo,
+    ivaTarifa
   ]);
 
   return rows[0];
@@ -28,7 +30,7 @@ export async function createProduct({
 
 export async function getProductsByBusiness(businessId) {
   const query = `
-    SELECT id, business_id, nombre, descripcion, precio, stock, stock_minimo, created_at
+    SELECT id, business_id, nombre, descripcion, precio, stock, stock_minimo, iva_tarifa, created_at
     FROM productos
     WHERE business_id = $1
     ORDER BY created_at DESC
@@ -45,7 +47,8 @@ export async function updateProduct({
   descripcion,
   precio,
   stock,
-  stockMinimo
+  stockMinimo,
+  ivaTarifa
 }) {
   const query = `
     UPDATE productos
@@ -54,10 +57,11 @@ export async function updateProduct({
       descripcion = $2,
       precio = $3,
       stock = $4,
-      stock_minimo = $5
+      stock_minimo = $5,
+      iva_tarifa = COALESCE($8, iva_tarifa)
     WHERE id = $6
       AND business_id = $7
-    RETURNING id, business_id, nombre, descripcion, precio, stock, stock_minimo, created_at
+    RETURNING id, business_id, nombre, descripcion, precio, stock, stock_minimo, iva_tarifa, created_at
   `;
 
   const { rows } = await pool.query(query, [
@@ -67,7 +71,8 @@ export async function updateProduct({
     stock,
     stockMinimo,
     productId,
-    businessId
+    businessId,
+    ivaTarifa ?? null
   ]);
 
   return rows[0] || null;
@@ -87,7 +92,7 @@ export async function deleteProduct({ businessId, productId }) {
 
 export async function getLowStockProductsByBusiness(businessId) {
   const query = `
-    SELECT id, business_id, nombre, descripcion, precio, stock, stock_minimo, created_at
+    SELECT id, business_id, nombre, descripcion, precio, stock, stock_minimo, iva_tarifa, created_at
     FROM productos
     WHERE business_id = $1
       AND stock < stock_minimo
@@ -100,7 +105,7 @@ export async function getLowStockProductsByBusiness(businessId) {
 
 export async function getAvailableProductsByBusiness(businessId) {
   const query = `
-    SELECT id, nombre, descripcion, precio, stock
+    SELECT id, nombre, descripcion, precio, stock, iva_tarifa
     FROM productos
     WHERE business_id = $1
       AND stock > 0
@@ -113,7 +118,7 @@ export async function getAvailableProductsByBusiness(businessId) {
 
 export async function getProductByIdAndBusiness({ businessId, productId }) {
   const query = `
-    SELECT id, business_id, nombre, descripcion, precio, stock, stock_minimo
+    SELECT id, business_id, nombre, descripcion, precio, stock, stock_minimo, iva_tarifa
     FROM productos
     WHERE id = $1
       AND business_id = $2

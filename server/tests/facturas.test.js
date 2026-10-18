@@ -50,8 +50,11 @@ describe("facturas", () => {
     expect(factura.customer_email).toBe("laura@correo.co");
     expect(factura.dian_payload.cliente.documento).toBe("43123456");
     expect(factura.dian_payload.items).toEqual([
-      { nombre: "Croissant", cantidad: 2, precio_unitario: 3200, subtotal: 6400 }
+      { nombre: "Croissant", cantidad: 2, precio_unitario: 3200, subtotal: 6400, iva_tarifa: 19, base: 5378.15, iva: 1021.85 }
     ]);
+    expect(factura.dian_payload.subtotal).toBe(5378.15);
+    expect(factura.dian_payload.total_iva).toBe(1021.85);
+    expect(factura.dian_payload.impuestos).toEqual([{ tarifa: 19, base: 5378.15, iva: 1021.85 }]);
   });
 
   it("no factura dos veces la misma venta", async () => {
