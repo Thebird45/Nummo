@@ -76,6 +76,14 @@ describe("facturas", () => {
     expect(invalida.status).toBe(400);
   });
 
+  it("el historial de ventas indica que venta ya tiene factura", async () => {
+    const res = await request(app).get("/api/ventas").set(auth);
+    const venta = res.body.sales.find((s) => s.id === ventaConCliente);
+    expect(venta.factura_codigo).toBe("FE-3");
+    expect(venta.factura_id).toBe(factura.id);
+    expect(venta.cliente_nombre).toBe("Laura Mejia");
+  });
+
   it("lista las facturas de la mas reciente a la mas antigua", async () => {
     const res = await request(app).get("/api/facturas").set(auth);
 

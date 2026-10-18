@@ -108,10 +108,16 @@ export async function createPosSale({
 
 export async function getSalesByBusiness(businessId) {
   const query = `
-    SELECT id, customer_name, cliente_id, payment_method, total, created_at
-    FROM sales
-    WHERE business_id = $1
-    ORDER BY created_at DESC
+    SELECT
+      s.id, s.customer_name, s.cliente_id, s.payment_method, s.total, s.created_at,
+      c.nombre AS cliente_nombre,
+      i.id AS factura_id,
+      i.prefijo || '-' || i.numero AS factura_codigo
+    FROM sales s
+    LEFT JOIN clientes c ON c.id = s.cliente_id
+    LEFT JOIN invoices i ON i.sale_id = s.id
+    WHERE s.business_id = $1
+    ORDER BY s.created_at DESC
     LIMIT 20
   `;
 

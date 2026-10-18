@@ -7,6 +7,7 @@ import RegisterPage from "./pages/RegisterPage";
 import VentasPage from "./pages/VentasPage";
 import ReportesPage from "./pages/ReportesPage";
 import ClientesPage from './pages/ClientesPage';
+import FacturasPage from "./pages/FacturasPage";
 
 export default function App() {
   return (
@@ -42,7 +43,7 @@ export default function App() {
         path="/facturas"
         element={
           <ProtectedRoute>
-            <DashboardPage section="facturas" />
+            <FacturasPage />
           </ProtectedRoute>
         }
       />
