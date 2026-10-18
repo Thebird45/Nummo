@@ -18,5 +18,7 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   plemsiApiUrl: process.env.PLEMSI_API_URL || "",
   plemsiApiKey: process.env.PLEMSI_API_KEY || "",
-  emailFrom: process.env.EMAIL_FROM || "no-reply@nummo.co"
+  emailFrom: process.env.EMAIL_FROM || "no-reply@nummo.co",
+  // Zona del negocio: define que es "hoy" en dashboard, reportes y PDF
+  timezone: process.env.APP_TIMEZONE || "America/Bogota"
 };

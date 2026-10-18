@@ -1,5 +1,22 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Bases creadas antes de TIMESTAMPTZ: convierte columnas TIMESTAMP asumiendo que guardaban UTC
+DO $$
+DECLARE col RECORD;
+BEGIN
+  FOR col IN
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND data_type = 'timestamp without time zone'
+  LOOP
+    EXECUTE format(
+      'ALTER TABLE %I ALTER COLUMN %I TYPE TIMESTAMPTZ USING %I AT TIME ZONE ''UTC''',
+      col.table_name, col.column_name, col.column_name
+    );
+  END LOOP;
+END $$;
+
 CREATE TABLE IF NOT EXISTS businesses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(120) NOT NULL,
@@ -7,9 +24,9 @@ CREATE TABLE IF NOT EXISTS businesses (
   address VARCHAR(180) NOT NULL,
   phone VARCHAR(30) NOT NULL,
   plan VARCHAR(20) NOT NULL DEFAULT 'basico',
-  trial_ends_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  trial_ends_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -19,8 +36,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(120) NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('dueno', 'empleado')),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS productos (
@@ -31,7 +48,7 @@ CREATE TABLE IF NOT EXISTS productos (
   precio NUMERIC(12,2) NOT NULL CHECK (precio >= 0),
   stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
   stock_minimo INTEGER NOT NULL DEFAULT 5 CHECK (stock_minimo >= 0),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS movimientos_inventario (
@@ -41,7 +58,7 @@ CREATE TABLE IF NOT EXISTS movimientos_inventario (
   tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('entrada', 'salida')),
   cantidad INTEGER NOT NULL CHECK (cantidad > 0),
   motivo TEXT,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS sales (
@@ -51,7 +68,7 @@ CREATE TABLE IF NOT EXISTS sales (
   customer_name VARCHAR(120),
   payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('efectivo', 'transferencia')),
   total NUMERIC(12,2) NOT NULL CHECK (total >= 0),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS sale_items (
@@ -73,8 +90,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   customer_email VARCHAR(120),
   pdf_url TEXT,
   dian_payload JSONB,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS customers (
@@ -83,8 +100,8 @@ CREATE TABLE IF NOT EXISTS customers (
   full_name VARCHAR(120) NOT NULL,
   document_number VARCHAR(40) NOT NULL,
   email VARCHAR(120),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (business_id, document_number)
 );
 
@@ -93,7 +110,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   concept VARCHAR(120) NOT NULL,
   amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS clientes (
   id          SERIAL PRIMARY KEY,
