@@ -223,6 +223,7 @@ EMAIL_FROM=tu_correo@gmail.com
 - `GET /api/facturas/:id` — detalle con copia de emisor, cliente e items
 - `GET /api/facturas/:id/pdf` — descarga el PDF (con CUFE y QR)
 - `POST /api/facturas/:id/consultar-estado` — consulta al proveedor si la factura ya fue validada
+- `POST /api/facturas/:id/reenviar` — rearma una factura **rechazada** con los datos actuales (cliente, productos) y la reenvia con el mismo numero y la fecha de hoy
 - `POST /api/facturas/:id/enviar` — `{ correo? }`; envia el PDF adjunto (por defecto al correo del cliente) y guarda `enviada_a` / `enviada_at`
 
 Sin cliente, la factura sale a "Consumidor final" (`222222222222`).
@@ -298,7 +299,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
 - Facturas emitidas antes del IVA no tienen desglose (el PDF muestra solo el total)
 - DIAN en ambiente de pruebas (proveedor `simulado`): las facturas no tienen validez fiscal
-- Una factura rechazada no se puede corregir ni reenviar todavia
+- Facturas validadas no se pueden anular ni corregir todavia (faltan notas credito)
 
 ---
 
@@ -396,6 +397,6 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 ## Siguientes pasos recomendados
 
 Para salir a produccion (vender a pymes):
-1. **Corregir y reenviar rechazadas; notas credito** — anular o corregir facturas validadas
+1. **Notas credito** — anular o corregir facturas validadas (devolucion y anulacion)
 2. **Adaptador Plemsi (o Aliaddo)** — `DIAN_PROVIDER=plemsi`; requiere cuenta del proveedor
 3. **Tests de frontend** — Vitest + Testing Library en `client`

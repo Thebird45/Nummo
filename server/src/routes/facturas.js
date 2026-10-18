@@ -6,6 +6,7 @@ import {
   getInvoiceById,
   getInvoicesByBusiness,
   markInvoiceSent,
+  rebuildRejectedInvoice,
   updateInvoiceDianStatus
 } from "../models/invoiceModel.js";
 import { consultarEstadoDian, enviarFacturaDian, proveedorDian } from "../services/dianService.js";
@@ -23,6 +24,40 @@ const sendSchema = z.object({
 });
 
 const isUuid = (value) => z.string().uuid().safeParse(value).success;
+
+// Envia al proveedor DIAN y guarda su respuesta
+async function emitir(invoice) {
+  const dian = await enviarFacturaDian(invoice);
+  const factura = await updateInvoiceDianStatus(invoice.id, {
+    status: dian.status,
+    provider: proveedorDian().nombre,
+    providerReference: dian.trackId,
+    cufe: dian.cufe,
+    ambiente: proveedorDian().tipoAmbiente,
+    respuesta: dian.respuesta
+  });
+  const message =
+    factura.status === "rechazada"
+      ? `Factura rechazada: ${dian.respuesta.mensajes.join("; ")}`
+      : "Factura generada correctamente";
+  return { message, factura };
+}
+
+// Errores de numeracion compartidos por crear y reenviar
+function respuestaNumeracion(res, error) {
+  if (error.message === "SIN_RESOLUCION") {
+    return res.status(409).json({
+      message: "Configura la resolucion de facturacion de la DIAN antes de facturar (Configuracion)"
+    });
+  }
+  if (error.message === "RESOLUCION_NO_VIGENTE") {
+    return res.status(409).json({ message: "La resolucion de facturacion no esta vigente; registra una nueva" });
+  }
+  if (error.message === "RANGO_AGOTADO") {
+    return res.status(409).json({ message: "Se agoto el rango de numeracion autorizado; registra una nueva resolucion" });
+  }
+  return null;
+}
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
@@ -42,21 +77,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       saleId: payload.sale_id
     });
 
-    const dian = await enviarFacturaDian(invoice);
-    const factura = await updateInvoiceDianStatus(invoice.id, {
-      status: dian.status,
-      provider: proveedorDian().nombre,
-      providerReference: dian.trackId,
-      cufe: dian.cufe,
-      ambiente: proveedorDian().tipoAmbiente,
-      respuesta: dian.respuesta
-    });
-
-    const message =
-      factura.status === "rechazada"
-        ? `Factura rechazada: ${dian.respuesta.mensajes.join("; ")}`
-        : "Factura generada correctamente";
-    return res.status(201).json({ message, factura });
+    return res.status(201).json(await emitir(invoice));
   } catch (error) {
     if (error.message === "VENTA_NO_ENCONTRADA") {
       return res.status(404).json({ message: "La venta no existe o no pertenece a tu negocio" });
@@ -66,21 +87,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       return res.status(409).json({ message: "Esta venta ya tiene factura" });
     }
 
-    if (error.message === "SIN_RESOLUCION") {
-      return res.status(409).json({
-        message: "Configura la resolucion de facturacion de la DIAN antes de facturar (Configuracion)"
-      });
-    }
-
-    if (error.message === "RESOLUCION_NO_VIGENTE") {
-      return res.status(409).json({ message: "La resolucion de facturacion no esta vigente; registra una nueva" });
-    }
-
-    if (error.message === "RANGO_AGOTADO") {
-      return res.status(409).json({ message: "Se agoto el rango de numeracion autorizado; registra una nueva resolucion" });
-    }
-
-    return next(error);
+    return respuestaNumeracion(res, error) || next(error);
   }
 });
 
@@ -96,6 +103,29 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     return res.status(200).json({ factura });
   } catch (error) {
     return next(error);
+  }
+});
+
+router.post("/:id/reenviar", requireAuth, async (req, res, next) => {
+  try {
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+    const invoice = await rebuildRejectedInvoice({ businessId: req.user.businessId, invoiceId: req.params.id });
+    const { factura } = await emitir(invoice);
+    const message =
+      factura.status === "rechazada"
+        ? `Sigue rechazada: ${factura.dian_respuesta.mensajes.join("; ")}`
+        : "Factura corregida y reenviada a la DIAN";
+    return res.status(200).json({ message, factura });
+  } catch (error) {
+    if (error.message === "FACTURA_NO_ENCONTRADA") {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+    if (error.message === "FACTURA_NO_RECHAZADA") {
+      return res.status(409).json({ message: "Solo se pueden reenviar facturas rechazadas" });
+    }
+    return respuestaNumeracion(res, error) || next(error);
   }
 });
 
