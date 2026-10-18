@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CreditCard,
+  Download,
+  FileText,
   Minus,
   Plus,
   Search,
@@ -12,6 +14,7 @@ import {
 import Sidebar from "../components/Sidebar";
 import { createPosSale, getPosAvailableProducts, getRecentSales } from "../services/pos";
 import { getClientes } from "../services/clientes";
+import { crearFactura, descargarFacturaPdf, mensajeDeError } from "../services/facturas";
 
 function formatCop(value) {
   return new Intl.NumberFormat("es-CO", {
@@ -53,10 +56,39 @@ export default function VentasPage() {
   const [recentSales, setRecentSales] = useState([]);
   const [tabActivo, setTabActivo] = useState("catalogo");
   const [historialFiltros, setHistorialFiltros] = useState({ query: "", metodo: "todos" });
+  const [facturando, setFacturando] = useState(null);
 
   const onLogout = () => {
     localStorage.removeItem("nummo_token");
     window.location.href = "/login";
+  };
+
+  const onFacturar = async (saleId) => {
+    setError("");
+    setFacturando(saleId);
+    try {
+      const factura = await crearFactura(saleId);
+      const codigo = `${factura.prefijo}-${factura.numero}`;
+      setSuccess(`Factura ${codigo} generada`);
+      setTimeout(() => setSuccess(""), 3000);
+      setLastTicket((prev) =>
+        prev?.venta_id === saleId ? { ...prev, factura: { id: factura.id, codigo } } : prev
+      );
+      setRecentSales(await getRecentSales());
+    } catch (apiError) {
+      setError(apiError.response?.data?.message || "No se pudo generar la factura");
+    } finally {
+      setFacturando(null);
+    }
+  };
+
+  const onDescargarPdf = async (factura) => {
+    setError("");
+    try {
+      await descargarFacturaPdf(factura);
+    } catch (apiError) {
+      setError(await mensajeDeError(apiError, "No se pudo descargar el PDF"));
+    }
   };
 
   useEffect(() => {
@@ -88,7 +120,7 @@ export default function VentasPage() {
     return recentSales.filter((s) => {
       const matchQuery =
         !historialFiltros.query.trim() ||
-        (s.customer_name || "").toLowerCase().includes(historialFiltros.query.toLowerCase());
+        (s.cliente_nombre || s.customer_name || "").toLowerCase().includes(historialFiltros.query.toLowerCase());
       const matchMetodo =
         historialFiltros.metodo === "todos" || s.payment_method === historialFiltros.metodo;
       return matchQuery && matchMetodo;
@@ -430,6 +462,24 @@ export default function VentasPage() {
                   <p className="font-bold text-emerald-900">Venta registrada</p>
                   <p className="mt-1 text-emerald-700">Ticket: {lastTicket.venta_id}</p>
                   <p className="text-emerald-700">Total: {formatCop(lastTicket.total)}</p>
+                  {lastTicket.factura ? (
+                    <button
+                      onClick={() => onDescargarPdf(lastTicket.factura)}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1 font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                    >
+                      <Download size={13} />
+                      Factura {lastTicket.factura.codigo} · PDF
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onFacturar(lastTicket.venta_id)}
+                      disabled={facturando === lastTicket.venta_id}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <FileText size={13} />
+                      {facturando === lastTicket.venta_id ? "Generando..." : "Generar factura"}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -485,7 +535,7 @@ export default function VentasPage() {
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1">
-                            <p className="font-semibold text-slate-900 text-sm">{sale.customer_name || "Cliente"}</p>
+                            <p className="font-semibold text-slate-900 text-sm">{sale.cliente_nombre || sale.customer_name || "Cliente"}</p>
                             <p className="text-xs text-slate-500 mt-0.5">{formatTimeAgo(sale.created_at)}</p>
                           </div>
                           <div className="text-right">
@@ -503,7 +553,24 @@ export default function VentasPage() {
                           >
                             {sale.payment_method === "efectivo" ? "Efectivo" : "Transferencia"}
                           </span>
-                          <span className="text-xs text-slate-500">Venta #{sale.id}</span>
+                          {sale.factura_codigo ? (
+                            <button
+                              onClick={() => onDescargarPdf({ id: sale.factura_id, codigo: sale.factura_codigo })}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                            >
+                              <Download size={13} />
+                              {sale.factura_codigo}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => onFacturar(sale.id)}
+                              disabled={facturando === sale.id}
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                            >
+                              <FileText size={13} />
+                              {facturando === sale.id ? "Generando..." : "Facturar"}
+                            </button>
+                          )}
                         </div>
                       </li>
                     ))

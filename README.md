@@ -9,7 +9,7 @@ Aplicacion web SaaS para pequenos negocios en Colombia.
 - POS (catalogo, carrito, historial de ventas, tabs internos)
 - Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos)
 - Clientes (CRUD, busqueda, historial de compras, selector en POS)
-- Estructura inicial para: facturacion
+- Facturacion (factura desde una venta, consecutivo FE-n, PDF, estado DIAN simulado)
 
 ## Estructura del proyecto
 
@@ -47,17 +47,19 @@ Nummo/
 │       ├── pages/
 │       │   ├── ClientesPage.jsx     # Tabs: Lista | Historial
 │       │   ├── DashboardPage.jsx
+│       │   ├── FacturasPage.jsx     # Lista, busqueda y descarga de PDF
 │       │   ├── InventarioPage.jsx   # Tabs: Productos | Categorias | Stock bajo | Movimientos
 │       │   ├── LoginPage.jsx
 │       │   ├── PlaceholderPage.jsx
 │       │   ├── RegisterPage.jsx
 │       │   ├── ReportesPage.jsx     # Tabs: Resumen | Ventas | Productos | Pagos | Clientes
-│       │   └── VentasPage.jsx       # Tabs: Catalogo | Carrito | Historial
+│       │   └── VentasPage.jsx       # Tabs: Catalogo | Carrito | Historial (boton Facturar)
 │       └── services/
 │           ├── api.js               # Axios instance con interceptor JWT (export nombrado)
 │           ├── auth.js
 │           ├── clientes.js          # CRUD clientes — usa import { api } nombrado
 │           ├── dashboard.js
+│           ├── facturas.js          # Crear factura y descargar PDF (blob con token)
 │           ├── inventory.js
 │           └── pos.js
 │
@@ -82,6 +84,7 @@ Nummo/
         │   ├── clienteModel.js      # CRUD clientes. ESModule. business_id UUID
         │   ├── dashboardModel.js
         │   ├── inventoryModel.js
+        │   ├── invoiceModel.js      # Factura desde venta, consecutivo por negocio
         │   ├── productModel.js
         │   ├── saleModel.js         # createPosSale acepta clienteId. JOIN a clientes en reportes
         │   └── userModel.js
@@ -90,13 +93,14 @@ Nummo/
         │   ├── auth.js
         │   ├── clientes.js          # ESModule. Usa requireAuth
         │   ├── dashboard.js
-        │   ├── facturas.js
+        │   ├── facturas.js          # CRUD facturas + PDF
         │   ├── inventario.js
         │   ├── productos.js
         │   ├── reportes.js
         │   └── ventas.js            # checkoutSchema incluye cliente_id opcional
         └── services/
-            └── dianService.js       # Stub para integracion DIAN (Plemsi/Aliaddo)
+            ├── dianService.js       # Stub para integracion DIAN (Plemsi/Aliaddo)
+            └── invoicePdf.js        # Genera el PDF con pdfkit
 ```
 
 ## Requisitos
@@ -163,6 +167,14 @@ App en: `http://localhost:5173`
 Archivo base: `server/src/services/dianService.js`
 Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
 
+## Endpoints facturacion
+- `GET /api/facturas` — lista (mas reciente primero)
+- `POST /api/facturas` — `{ sale_id }`; una factura por venta, consecutivo `FE-n` por negocio
+- `GET /api/facturas/:id` — detalle con copia de emisor, cliente e items
+- `GET /api/facturas/:id/pdf` — descarga el PDF
+
+Sin cliente, la factura sale a "Consumidor final" (`222222222222`). Facturas creadas antes del modulo se numeran al correr `schema.sql`, pero no tienen PDF.
+
 ## Endpoints inventario
 - `GET /api/productos`
 - `POST /api/productos`
@@ -219,6 +231,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - POS (catalogo, carrito, cobro, historial con filtros)
 - Clientes (CRUD, historial de compras, aislado por negocio)
 - Reportes (`/api/reportes` con nombre del cliente)
+- Facturacion: facturar desde el historial del POS o tras cobrar, pagina `/facturas`, PDF
 - Sidebar con todos los modulos
 - Tests de backend + CI en cada PR
 
@@ -227,6 +240,9 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 
 ### Pendiente
 - Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
+- Facturas sin IVA desglosado: los productos no tienen campo de IVA
+- DIAN simulada: toda factura queda en "pendiente"
+- Fechas en UTC: las tablas usan `TIMESTAMP` sin zona, de noche se ve la fecha del dia siguiente
 
 ---
 
@@ -291,7 +307,7 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 ## Probar POS rapido
 1. `http://localhost:5173/ventas`
 2. Agregar productos al carrito
-3. Seleccionar cliente del selector (requiere ERROR 1 resuelto)
+3. Seleccionar cliente del selector
 4. Cobrar y verificar ticket, descuento de stock y movimiento de salida
 
 ## Probar clientes rapido
@@ -302,6 +318,12 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 5. Hacer venta con ese cliente
 6. Volver a Clientes → Historial y verificar la venta
 
+## Probar facturacion rapido
+1. `http://localhost:5173/ventas` → tab Historial
+2. Presionar "Facturar" en una venta (o "Generar factura" justo despues de cobrar)
+3. Ver el codigo `FE-n` en la venta y descargar el PDF
+4. `http://localhost:5173/facturas` → buscar y descargar
+
 ## Probar reportes rapido
 1. `http://localhost:5173/reportes`
 2. Cambiar periodo (hoy, semana, mes, personalizado)
@@ -311,7 +333,9 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 
 ## Siguientes pasos recomendados
 
-1. **Implementar Facturacion** — emision de factura desde venta existente, PDF descargable, numeracion consecutiva DIAN
+1. **IVA en productos y facturas** — tarifa por producto (0/5/19 %) y desglose en la factura
 2. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
-3. **Reportes PDF** — exportar reportes descargables
-4. **Tests de frontend** — Vitest + Testing Library en `client`
+3. **Fechas con zona horaria** — migrar a `TIMESTAMPTZ` (America/Bogota)
+4. **Enviar factura por correo** — PDF al `customer_email`
+5. **Reportes PDF** — exportar reportes descargables
+6. **Tests de frontend** — Vitest + Testing Library en `client`
