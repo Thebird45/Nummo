@@ -116,3 +116,21 @@ CREATE INDEX IF NOT EXISTS idx_invoices_business_id_created_at ON invoices(busin
 CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_business_id ON movimientos_inventario(business_id);
 CREATE INDEX IF NOT EXISTS idx_clientes_business_id ON clientes(business_id);
 CREATE INDEX IF NOT EXISTS idx_sales_cliente_id ON sales(cliente_id);
+
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS prefijo VARCHAR(10) NOT NULL DEFAULT 'FE';
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS numero INTEGER;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS total NUMERIC(12,2);
+-- Numera las facturas creadas antes del consecutivo
+WITH maximos AS (
+  SELECT business_id, prefijo, COALESCE(MAX(numero), 0) AS ultimo
+  FROM invoices
+  GROUP BY business_id, prefijo
+), pendientes AS (
+  SELECT i.id, m.ultimo + ROW_NUMBER() OVER (PARTITION BY i.business_id, i.prefijo ORDER BY i.created_at, i.id) AS numero
+  FROM invoices i
+  JOIN maximos m USING (business_id, prefijo)
+  WHERE i.numero IS NULL
+)
+UPDATE invoices SET numero = p.numero FROM pendientes p WHERE invoices.id = p.id;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_consecutivo ON invoices(business_id, prefijo, numero);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_sale_id ON invoices(sale_id) WHERE sale_id IS NOT NULL;

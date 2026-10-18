@@ -34,6 +34,11 @@ export async function resetDb() {
   await db.exec(readSql("seed"));
 }
 
+// Vuelve a correr schema.sql sobre los datos existentes (como en una base ya creada)
+export async function resetSchemaOnly() {
+  await db.exec(readSql("schema"));
+}
+
 export function tokenFor({ sub = USER_ID, businessId = BUSINESS_ID, role = "dueno" } = {}) {
   return jwt.sign({ sub, businessId, role }, process.env.JWT_SECRET, { expiresIn: "1h" });
 }
