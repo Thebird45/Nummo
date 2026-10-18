@@ -210,38 +210,23 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 
 ---
 
-## Estado actual (abril 2026)
+## Estado actual (octubre 2026)
 
 ### Funciona correctamente
 - Login y registro
 - Dashboard
 - Inventario (CRUD, movimientos, stock bajo)
 - POS (catalogo, carrito, cobro, historial con filtros)
-- Pagina de Clientes: carga, formulario abre, UI completa y funcional
+- Clientes (CRUD, historial de compras, aislado por negocio)
+- Reportes (`/api/reportes` con nombre del cliente)
 - Sidebar con todos los modulos
+- Tests de backend + CI en cada PR
 
-### Errores pendientes por resolver
+### Resuelto (octubre 2026)
+- ERROR 1 (`GET /api/clientes`) y ERROR 2 (reportes): `schema.sql` creaba `clientes.business_id` como `INTEGER` contra `businesses.id` `UUID`, asi que la tabla no existia. Corregido a `UUID` y se agrego `sales.cliente_id` (PR #1)
 
-#### ERROR 1 — `GET /api/clientes` falla con error interno
-- **Sintoma:** La pagina `/clientes` muestra "Error al cargar clientes" al entrar
-- **Causa probable:** `clienteModel.getAll()` falla en la query SQL. El `businessId` que viene del JWT puede tener un formato distinto al esperado por la query, o hay un problema con el tipo UUID en el WHERE
-- **Como depurar:** Abrir `/clientes` y revisar los logs del backend en la terminal. Buscar el mensaje de error de PostgreSQL
-- **Archivos a revisar:** `server/src/models/clienteModel.js` funcion `getAll`, y verificar que `req.user.businessId` llega correctamente desde `authMiddleware.js`
-
-#### ERROR 2 — Reportes muestra "Error interno del servidor"
-- **Sintoma:** `/reportes` no carga datos
-- **Causa probable:** `getSalesByDateRange` en `saleModel.js` hace `LEFT JOIN clientes` — si hay algun problema con esa tabla o la query, falla. Tambien puede ser un error preexistente
-- **Como depurar:** Abrir `/reportes` y revisar logs del backend
-- **Archivos a revisar:** `server/src/models/saleModel.js` funcion `getSalesByDateRange`
-
-#### PENDIENTE — Crear cliente no verificado end-to-end
-- El formulario abre correctamente pero no se confirmo que el `POST /api/clientes` guarde en la DB
-- Depende de resolver ERROR 1 primero
-- **Como probar:** Llenar formulario en `/clientes` y presionar "Crear cliente". Revisar logs del backend si falla
-
-#### PENDIENTE — Selector de cliente en POS no verificado
-- El select existe en el carrito pero no se confirmo que muestre clientes reales
-- Depende de resolver ERROR 1 (necesita que `GET /api/clientes` funcione)
+### Pendiente
+- Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
 
 ---
 
@@ -326,9 +311,7 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 
 ## Siguientes pasos recomendados
 
-1. **Depurar ERROR 1** — `GET /api/clientes` falla. Revisar logs backend y `authMiddleware.js` para confirmar formato de `businessId`
-2. **Depurar ERROR 2** — Reportes falla. Revisar `getSalesByDateRange` y el JOIN a clientes
-3. **Implementar Facturacion** — emision de factura desde venta existente, PDF descargable, numeracion consecutiva DIAN
-4. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
-5. **Reportes PDF** — exportar reportes descargables
-6. **Pruebas automatizadas** — Jest para backend, Vitest para fronten
+1. **Implementar Facturacion** — emision de factura desde venta existente, PDF descargable, numeracion consecutiva DIAN
+2. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
+3. **Reportes PDF** — exportar reportes descargables
+4. **Tests de frontend** — Vitest + Testing Library en `client`
