@@ -66,6 +66,20 @@ router.post("/", requireAuth, async (req, res, next) => {
       return res.status(409).json({ message: "Esta venta ya tiene factura" });
     }
 
+    if (error.message === "SIN_RESOLUCION") {
+      return res.status(409).json({
+        message: "Configura la resolucion de facturacion de la DIAN antes de facturar (Configuracion)"
+      });
+    }
+
+    if (error.message === "RESOLUCION_NO_VIGENTE") {
+      return res.status(409).json({ message: "La resolucion de facturacion no esta vigente; registra una nueva" });
+    }
+
+    if (error.message === "RANGO_AGOTADO") {
+      return res.status(409).json({ message: "Se agoto el rango de numeracion autorizado; registra una nueva resolucion" });
+    }
+
     return next(error);
   }
 });

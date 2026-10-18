@@ -123,6 +123,17 @@ export function buildInvoicePdf(invoice) {
     motivos.forEach((motivo) => doc.text(`- ${motivo}`));
     doc.fillColor("black");
   }
+  const resolucion = invoice.dian_payload.resolucion;
+  if (resolucion) {
+    const prefijo = resolucion.prefijo ? `prefijo ${resolucion.prefijo}, ` : "";
+    doc.font("Helvetica").fontSize(8).fillColor("#334155").text(
+      `Autorizacion de numeracion de facturacion DIAN No. ${resolucion.numero} del ${resolucion.fecha}, ` +
+        `${prefijo}del ${resolucion.desde} al ${resolucion.hasta}, vigente del ${resolucion.vigencia_desde} al ${resolucion.vigencia_hasta}.`,
+      50,
+      675,
+      { align: "center", width: 510 }
+    );
+  }
   if (invoice.dian_ambiente === "2") {
     doc.font("Helvetica-Bold").fontSize(9).fillColor("#b45309")
       .text("Documento generado en ambiente de pruebas: sin validez fiscal.", 50, 700, { align: "center", width: 510 });

@@ -19,7 +19,11 @@ export const proveedorSimulado = {
     }
 
     const cufe = calcularCufe(
-      datosCufe(factura, { claveTecnica: env.dian.claveTecnica, tipoAmbiente: TIPO_AMBIENTE, timezone: env.timezone })
+      datosCufe(factura, {
+        claveTecnica: factura.clave_tecnica || env.dian.claveTecnica,
+        tipoAmbiente: TIPO_AMBIENTE,
+        timezone: env.timezone
+      })
     );
     return {
       status: "pendiente",

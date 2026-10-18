@@ -8,6 +8,7 @@ import VentasPage from "./pages/VentasPage";
 import ReportesPage from "./pages/ReportesPage";
 import ClientesPage from './pages/ClientesPage';
 import FacturasPage from "./pages/FacturasPage";
+import ConfiguracionPage from "./pages/ConfiguracionPage";
 
 export default function App() {
   return (
@@ -63,6 +64,15 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+
+      <Route
+        path="/configuracion"
+        element={
+          <ProtectedRoute>
+            <ConfiguracionPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route path="*" element={<Navigate to="/login" replace />} />
       

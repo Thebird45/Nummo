@@ -45,3 +45,19 @@ VALUES
   ('11111111-1111-1111-1111-111111111111', 'FE', 1, 'plemsi', 'PLM-1001', 'validada', 'cliente1@correo.com'),
   ('11111111-1111-1111-1111-111111111111', 'FE', 2, 'plemsi', 'PLM-1002', 'pendiente', 'cliente2@correo.com')
 ON CONFLICT DO NOTHING;
+
+-- Resolucion de pruebas para el negocio demo
+INSERT INTO resoluciones_facturacion
+  (id, business_id, numero_resolucion, fecha_resolucion, prefijo, rango_desde, rango_hasta, vigencia_desde, vigencia_hasta)
+VALUES (
+  '33333333-3333-3333-3333-333333333333',
+  '11111111-1111-1111-1111-111111111111',
+  '18760000001',
+  CURRENT_DATE - INTERVAL '30 days',
+  'FE',
+  1,
+  5000,
+  CURRENT_DATE - INTERVAL '30 days',
+  CURRENT_DATE + INTERVAL '2 years'
+)
+ON CONFLICT (id) DO NOTHING;
