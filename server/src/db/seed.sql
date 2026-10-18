@@ -2,13 +2,13 @@ INSERT INTO businesses (id, name, nit, address, phone, plan, trial_ends_at)
 VALUES (
   '11111111-1111-1111-1111-111111111111',
   'Panaderia La 80',
-  '901234567-8',
+  '901234567-7',
   'Calle 80 #45-10, Medellin',
   '3001234567',
   'pro',
   NOW() + INTERVAL '15 days'
 )
-ON CONFLICT (nit) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET nit = EXCLUDED.nit;
 
 INSERT INTO users (id, business_id, full_name, email, password_hash, role)
 VALUES (

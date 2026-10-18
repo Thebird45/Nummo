@@ -5,7 +5,7 @@ import { resetDb } from "./helpers/testDb.js";
 
 const nuevoNegocio = {
   businessName: "Tienda Prueba",
-  nit: "900111222-3",
+  nit: "900111222-1",
   address: "Carrera 10 #20-30",
   phone: "3009998877",
   ownerName: "Dueno Prueba",

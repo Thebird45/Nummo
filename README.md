@@ -9,7 +9,7 @@ Aplicacion web SaaS para pequenos negocios en Colombia.
 - POS (catalogo, carrito, historial de ventas, tabs internos)
 - Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos, exportar PDF)
 - Clientes (CRUD, busqueda, historial de compras, selector en POS)
-- Facturacion (factura desde una venta, consecutivo FE-n, IVA desglosado, PDF, envio por correo, estado DIAN simulado)
+- Facturacion electronica (factura desde una venta, consecutivo FE-n, IVA desglosado, CUFE y QR, validacion DIAN, PDF, envio por correo)
 
 ## Estructura del proyecto
 
@@ -170,9 +170,19 @@ App en: `http://localhost:5173`
 
 Solo para desarrollo local; no usar datos reales en el seed.
 
-## Integracion DIAN
-Archivo base: `server/src/services/dianService.js`
-Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
+## Facturacion electronica (DIAN)
+La emision pasa por un **proveedor tecnologico** intercambiable (`server/src/services/dianService.js`), elegido con `DIAN_PROVIDER`:
+
+| Proveedor | Estado | Uso |
+|---|---|---|
+| `simulado` | listo | Ambiente de pruebas: sin validez fiscal, el PDF lo indica |
+| `plemsi` | pendiente | Produccion (requiere cuenta y resolucion de numeracion) |
+
+Flujo: al crear la factura se **valida** (NIT con digito de verificacion, productos, totales, desglose de IVA) → si falla queda `rechazada` con los motivos; si pasa se calcula el **CUFE** y queda `pendiente` → `POST /consultar-estado` la pasa a `validada` (el simulado tarda `DIAN_SIM_SEGUNDOS`).
+
+- **CUFE:** SHA-384 del Anexo Tecnico 1.9 (seccion 11.2), verificado contra el ejemplo oficial de la DIAN en los tests. Usa `DIAN_CLAVE_TECNICA`, que en produccion entrega la DIAN con la resolucion de numeracion.
+- **QR:** datos de la factura + enlace a `catalogo-vpfe` (o `catalogo-vpfe-hab` en pruebas).
+- **NIT:** se valida el digito de verificacion al registrar el negocio, al crear/editar clientes y antes de enviar a la DIAN.
 
 ## Endpoints reportes
 - `GET /api/reportes?inicio&fin` — ventas del periodo (ISO). Sin fechas: ultimos 30 dias
@@ -201,7 +211,8 @@ EMAIL_FROM=tu_correo@gmail.com
 - `GET /api/facturas` — lista (mas reciente primero)
 - `POST /api/facturas` — `{ sale_id }`; una factura por venta, consecutivo `FE-n` por negocio
 - `GET /api/facturas/:id` — detalle con copia de emisor, cliente e items
-- `GET /api/facturas/:id/pdf` — descarga el PDF
+- `GET /api/facturas/:id/pdf` — descarga el PDF (con CUFE y QR)
+- `POST /api/facturas/:id/consultar-estado` — consulta al proveedor si la factura ya fue validada
 - `POST /api/facturas/:id/enviar` — `{ correo? }`; envia el PDF adjunto (por defecto al correo del cliente) y guarda `enviada_a` / `enviada_at`
 
 Sin cliente, la factura sale a "Consumidor final" (`222222222222`).
@@ -276,7 +287,8 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 ### Pendiente
 - Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
 - Facturas emitidas antes del IVA no tienen desglose (el PDF muestra solo el total)
-- DIAN simulada: toda factura queda en "pendiente"
+- DIAN en ambiente de pruebas (proveedor `simulado`): las facturas no tienen validez fiscal
+- Una factura rechazada no se puede corregir ni reenviar todavia
 
 ---
 
@@ -373,6 +385,8 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 
 ## Siguientes pasos recomendados
 
-1. **Simulacion DIAN mas realista** — estados, CUFE de prueba y rechazos por datos faltantes
-2. **Integracion real DIAN** — requiere empresa con NIT y cuenta en Plemsi/Aliaddo (de pago)
-3. **Tests de frontend** — Vitest + Testing Library en `client`
+Para salir a produccion (vender a pymes):
+1. **Resolucion de numeracion por negocio** — prefijo, rango autorizado, vigencia y clave tecnica que entrega la DIAN
+2. **Corregir y reenviar rechazadas; notas credito** — anular o corregir facturas validadas
+3. **Adaptador Plemsi (o Aliaddo)** — `DIAN_PROVIDER=plemsi`; requiere cuenta del proveedor
+4. **Tests de frontend** — Vitest + Testing Library en `client`

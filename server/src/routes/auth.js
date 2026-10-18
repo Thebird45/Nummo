@@ -6,12 +6,19 @@ import { env } from "../config/env.js";
 import { createBusiness } from "../models/businessModel.js";
 import { createUser, getUserByEmail, getSafeUserById } from "../models/userModel.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { errorNit } from "../services/dian/nit.js";
 
 const router = express.Router();
 
 const registerSchema = z.object({
   businessName: z.string().min(2, "El nombre del negocio es obligatorio"),
-  nit: z.string().min(5, "El NIT es obligatorio"),
+  nit: z
+    .string()
+    .min(5, "El NIT es obligatorio")
+    .superRefine((nit, ctx) => {
+      const error = errorNit(nit);
+      if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error });
+    }),
   address: z.string().min(5, "La direccion es obligatoria"),
   phone: z.string().min(7, "El telefono es obligatorio"),
   ownerName: z.string().min(2, "El nombre del dueno es obligatorio"),

@@ -1,5 +1,7 @@
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { env } from "../config/env.js";
+import { contenidoQr, datosCufe } from "./dian/cufe.js";
 
 const cop = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -12,6 +14,30 @@ const ESTADOS = {
   validada: "Validada por la DIAN",
   rechazada: "Rechazada por la DIAN"
 };
+
+// QR (modulos dibujados como cuadros) con el CUFE al lado
+function dibujarQr(doc, invoice, x, y) {
+  const datos = datosCufe(invoice, {
+    claveTecnica: "",
+    tipoAmbiente: invoice.dian_ambiente || "2",
+    timezone: env.timezone
+  });
+  const { modules } = QRCode.create(contenidoQr(invoice, datos, invoice.cufe), { errorCorrectionLevel: "M" });
+  const lado = 110;
+  const celda = lado / modules.size;
+  for (let fila = 0; fila < modules.size; fila += 1) {
+    for (let col = 0; col < modules.size; col += 1) {
+      if (modules.get(fila, col)) doc.rect(x + col * celda, y + fila * celda, celda, celda);
+    }
+  }
+  doc.fill("black");
+
+  doc.font("Helvetica-Bold").fontSize(8).fillColor("black").text("CUFE:", x + lado + 12, y + 4);
+  doc.font("Helvetica").fontSize(7).text(invoice.cufe, x + lado + 12, y + 16, { width: 300 });
+  const estado = invoice.status === "validada" ? "Validada por la DIAN" : "En validacion DIAN";
+  doc.font("Helvetica").fontSize(8).fillColor("gray").text(estado, x + lado + 12, y + 70);
+  doc.fillColor("black");
+}
 
 // Devuelve el PDF como stream para enviarlo directo en la respuesta
 export function buildInvoicePdf(invoice) {
@@ -84,6 +110,23 @@ export function buildInvoicePdf(invoice) {
     .text(`Total: ${cop.format(total)}`, 50, y, { align: "right", width: 510 });
   doc.font("Helvetica").fontSize(8)
     .text("Precios con IVA incluido.", 50, y + 18, { align: "right", width: 510 });
+
+  y += 45;
+  if (invoice.cufe) {
+    dibujarQr(doc, invoice, 50, y);
+  }
+  if (invoice.status === "rechazada") {
+    const motivos = invoice.dian_respuesta?.mensajes || [];
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("#b91c1c")
+      .text("Factura rechazada: sin validez", 50, y)
+      .font("Helvetica").fontSize(9);
+    motivos.forEach((motivo) => doc.text(`- ${motivo}`));
+    doc.fillColor("black");
+  }
+  if (invoice.dian_ambiente === "2") {
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#b45309")
+      .text("Documento generado en ambiente de pruebas: sin validez fiscal.", 50, 700, { align: "center", width: 510 });
+  }
 
   doc.fontSize(8).font("Helvetica").fillColor("gray")
     .text("Documento generado por Nummo.", 50, 720, { align: "center", width: 510 });

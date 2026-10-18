@@ -159,3 +159,8 @@ ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS iva_tarifa NUMERIC(5,2);
 -- Envio de facturas por correo
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS enviada_a VARCHAR(120);
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS enviada_at TIMESTAMPTZ;
+
+-- Respuesta de la DIAN (via proveedor tecnologico)
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cufe VARCHAR(96);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS dian_ambiente VARCHAR(1);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS dian_respuesta JSONB;

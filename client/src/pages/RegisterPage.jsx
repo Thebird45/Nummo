@@ -34,7 +34,8 @@ export default function RegisterPage() {
       localStorage.setItem("nummo_token", data.token);
       navigate("/dashboard");
     } catch (apiError) {
-      setError(apiError.response?.data?.message || "No se pudo completar el registro");
+      const data = apiError.response?.data;
+      setError(data?.errors?.[0]?.mensaje || data?.message || "No se pudo completar el registro");
     } finally {
       setLoading(false);
     }

@@ -69,8 +69,12 @@ export default function VentasPage() {
     try {
       const factura = await crearFactura(saleId);
       const codigo = `${factura.prefijo}-${factura.numero}`;
-      setSuccess(`Factura ${codigo} generada`);
-      setTimeout(() => setSuccess(""), 3000);
+      if (factura.status === "rechazada") {
+        setError(`Factura ${codigo} rechazada: ${(factura.dian_respuesta?.mensajes || []).join("; ")}`);
+      } else {
+        setSuccess(`Factura ${codigo} generada`);
+        setTimeout(() => setSuccess(""), 3000);
+      }
       setLastTicket((prev) =>
         prev?.venta_id === saleId ? { ...prev, factura: { id: factura.id, codigo } } : prev
       );
