@@ -7,7 +7,7 @@ Aplicacion web SaaS para pequenos negocios en Colombia.
 - Dashboard principal (ventas, ingresos, facturas, stock bajo, ventas semanales)
 - Inventario completo (CRUD, IVA por producto, alertas de bajo stock, movimientos entrada/salida, tabs internos)
 - POS (catalogo, carrito, historial de ventas, tabs internos)
-- Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos)
+- Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos, exportar PDF)
 - Clientes (CRUD, busqueda, historial de compras, selector en POS)
 - Facturacion (factura desde una venta, consecutivo FE-n, IVA desglosado, PDF, envio por correo, estado DIAN simulado)
 
@@ -59,7 +59,8 @@ Nummo/
 │           ├── auth.js
 │           ├── clientes.js          # CRUD clientes — usa import { api } nombrado
 │           ├── dashboard.js
-│           ├── facturas.js          # Crear factura y descargar PDF (blob con token)
+│           ├── descargas.js         # Descarga de PDFs con token (blob)
+│           ├── facturas.js          # Crear, enviar y descargar facturas
 │           ├── inventory.js
 │           └── pos.js
 │
@@ -101,6 +102,8 @@ Nummo/
         └── services/
             ├── dianService.js       # Stub para integracion DIAN (Plemsi/Aliaddo)
             ├── emailService.js      # Nodemailer; sin SMTP_HOST el envio se simula
+            ├── reportPdf.js         # PDF del reporte de ventas (KPIs, grafica, tablas)
+            ├── reportSummary.js     # Resumen de ventas por periodo (dia/semana/mes)
             ├── iva.js               # Desglose base/IVA (precios con IVA incluido)
             └── invoicePdf.js        # Genera el PDF con pdfkit
 ```
@@ -170,6 +173,10 @@ Solo para desarrollo local; no usar datos reales en el seed.
 ## Integracion DIAN
 Archivo base: `server/src/services/dianService.js`
 Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
+
+## Endpoints reportes
+- `GET /api/reportes?inicio&fin` — ventas del periodo (ISO). Sin fechas: ultimos 30 dias
+- `GET /api/reportes/pdf?inicio&fin` — PDF con total, transacciones, ticket promedio, grafica (por dia hasta 31 dias, por semana hasta ~6 meses, luego por mes), metodos de pago, productos y clientes top
 
 ## Correo (SMTP)
 Configura en `server/.env` (ver `.env.example`). Sin `SMTP_HOST` el envio se **simula**: no sale ningun correo y la app lo avisa.
@@ -256,7 +263,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - Inventario (CRUD, movimientos, stock bajo)
 - POS (catalogo, carrito, cobro, historial con filtros)
 - Clientes (CRUD, historial de compras, aislado por negocio)
-- Reportes (`/api/reportes` con nombre del cliente)
+- Reportes (`/api/reportes` con nombre del cliente) y exportar a PDF
 - Facturacion: facturar desde el historial del POS o tras cobrar, pagina `/facturas`, PDF y envio por correo
 - IVA por producto (0/5/19 %) y desglose en factura y PDF
 - Fechas en hora de Colombia: columnas `TIMESTAMPTZ` y sesion de la DB en `APP_TIMEZONE`
@@ -360,12 +367,12 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 1. `http://localhost:5173/reportes`
 2. Cambiar periodo (hoy, semana, mes, personalizado)
 3. Verificar KPIs y graficas
+4. "Exportar PDF" descarga el reporte del periodo elegido
 
 ---
 
 ## Siguientes pasos recomendados
 
-1. **Reportes PDF** — exportar reportes descargables
-2. **Simulacion DIAN mas realista** — estados, CUFE de prueba y rechazos por datos faltantes
-3. **Integracion real DIAN** — requiere empresa con NIT y cuenta en Plemsi/Aliaddo (de pago)
-4. **Tests de frontend** — Vitest + Testing Library en `client`
+1. **Simulacion DIAN mas realista** — estados, CUFE de prueba y rechazos por datos faltantes
+2. **Integracion real DIAN** — requiere empresa con NIT y cuenta en Plemsi/Aliaddo (de pago)
+3. **Tests de frontend** — Vitest + Testing Library en `client`
