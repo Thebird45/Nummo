@@ -7,7 +7,8 @@ import {
   descargarFacturaPdf,
   enviarFactura,
   getFacturas,
-  mensajeDeError
+  mensajeDeError,
+  reenviarFactura
 } from "../services/facturas";
 import { getResoluciones } from "../services/resoluciones";
 
@@ -41,9 +42,36 @@ export default function FacturasPage() {
   const actualizarEstado = (factura) =>
     setFacturas((prev) =>
       prev.map((f) =>
-        f.id === factura.id ? { ...f, status: factura.status, dian_mensajes: factura.dian_respuesta?.mensajes } : f
+        f.id === factura.id
+          ? {
+              ...f,
+              status: factura.status,
+              dian_mensajes: factura.dian_respuesta?.mensajes,
+              created_at: factura.created_at,
+              cliente_nombre: factura.dian_payload?.cliente?.nombre ?? f.cliente_nombre
+            }
+          : f
       )
     );
+
+  const onReenviar = async (id) => {
+    setError("");
+    setConsultando(id);
+    try {
+      const data = await reenviarFactura(id);
+      actualizarEstado(data.factura);
+      if (data.factura.status === "rechazada") {
+        setError(data.message);
+      } else {
+        setMensaje(data.message);
+        setTimeout(() => setMensaje(""), 4000);
+      }
+    } catch (apiError) {
+      setError(apiError.response?.data?.message || "No se pudo reenviar la factura");
+    } finally {
+      setConsultando(null);
+    }
+  };
 
   const consultarDian = async (id) => {
     setConsultando(id);
@@ -229,12 +257,27 @@ export default function FacturasPage() {
                             Consultar DIAN
                           </button>
                         )}
-                        {f.status === "rechazada" && f.dian_mensajes?.length > 0 && (
-                          <ul className="mt-1 max-w-xs text-[11px] text-red-600">
-                            {f.dian_mensajes.map((m) => (
-                              <li key={m}>{m}</li>
-                            ))}
-                          </ul>
+                        {f.status === "rechazada" && (
+                          <div className="mt-1 max-w-xs">
+                            {f.dian_mensajes?.length > 0 && (
+                              <ul className="text-[11px] text-red-600">
+                                {f.dian_mensajes.map((m) => (
+                                  <li key={m}>{m}</li>
+                                ))}
+                              </ul>
+                            )}
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              Corrige el dato (por ejemplo el NIT en Clientes) y reenviala con el mismo numero.
+                            </p>
+                            <button
+                              onClick={() => onReenviar(f.id)}
+                              disabled={consultando === f.id}
+                              className="mt-1 inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-0.5 text-[11px] font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              <RefreshCw size={11} className={consultando === f.id ? "animate-spin" : ""} />
+                              Reenviar
+                            </button>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">

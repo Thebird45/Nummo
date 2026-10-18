@@ -18,6 +18,11 @@ export async function consultarEstadoFactura(id) {
   return data.factura;
 }
 
+export async function reenviarFactura(id) {
+  const { data } = await api.post(`/facturas/${id}/reenviar`);
+  return data;
+}
+
 export async function enviarFactura(id, correo) {
   const { data } = await api.post(`/facturas/${id}/enviar`, correo ? { correo } : {});
   return data;
