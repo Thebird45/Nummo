@@ -5,11 +5,11 @@ Aplicacion web SaaS para pequenos negocios en Colombia.
 ## Modulos
 - Autenticacion (registro de negocio, login seguro, roles)
 - Dashboard principal (ventas, ingresos, facturas, stock bajo, ventas semanales)
-- Inventario completo (CRUD, alertas de bajo stock, movimientos entrada/salida, tabs internos)
+- Inventario completo (CRUD, IVA por producto, alertas de bajo stock, movimientos entrada/salida, tabs internos)
 - POS (catalogo, carrito, historial de ventas, tabs internos)
 - Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos)
 - Clientes (CRUD, busqueda, historial de compras, selector en POS)
-- Facturacion (factura desde una venta, consecutivo FE-n, PDF, estado DIAN simulado)
+- Facturacion (factura desde una venta, consecutivo FE-n, IVA desglosado, PDF, estado DIAN simulado)
 
 ## Estructura del proyecto
 
@@ -100,6 +100,7 @@ Nummo/
         │   └── ventas.js            # checkoutSchema incluye cliente_id opcional
         └── services/
             ├── dianService.js       # Stub para integracion DIAN (Plemsi/Aliaddo)
+            ├── iva.js               # Desglose base/IVA (precios con IVA incluido)
             └── invoicePdf.js        # Genera el PDF con pdfkit
 ```
 
@@ -175,7 +176,9 @@ Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
 - `GET /api/facturas/:id` — detalle con copia de emisor, cliente e items
 - `GET /api/facturas/:id/pdf` — descarga el PDF
 
-Sin cliente, la factura sale a "Consumidor final" (`222222222222`). Facturas creadas antes del modulo se numeran al correr `schema.sql`, pero no tienen PDF.
+Sin cliente, la factura sale a "Consumidor final" (`222222222222`).
+
+**IVA:** cada producto tiene tarifa 0, 5 o 19 % (19 por defecto) y su precio **incluye IVA**. Al vender, la tarifa se copia a `sale_items`; la factura calcula base e IVA por tarifa (en centavos, base + IVA = total exacto). Facturas creadas antes del modulo se numeran al correr `schema.sql`, pero no tienen PDF.
 
 ## Endpoints inventario
 - `GET /api/productos`
@@ -234,6 +237,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - Clientes (CRUD, historial de compras, aislado por negocio)
 - Reportes (`/api/reportes` con nombre del cliente)
 - Facturacion: facturar desde el historial del POS o tras cobrar, pagina `/facturas`, PDF
+- IVA por producto (0/5/19 %) y desglose en factura y PDF
 - Sidebar con todos los modulos
 - Tests de backend + CI en cada PR
 
@@ -242,7 +246,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 
 ### Pendiente
 - Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
-- Facturas sin IVA desglosado: los productos no tienen campo de IVA
+- Facturas emitidas antes del IVA no tienen desglose (el PDF muestra solo el total)
 - DIAN simulada: toda factura queda en "pendiente"
 - Fechas en UTC: las tablas usan `TIMESTAMP` sin zona, de noche se ve la fecha del dia siguiente
 
@@ -320,6 +324,11 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 5. Hacer venta con ese cliente
 6. Volver a Clientes → Historial y verificar la venta
 
+## Probar IVA rapido
+1. `http://localhost:5173/inventario` → "Agregar producto" → elegir IVA (19, 5 o 0 %)
+2. La tabla muestra "IVA x% incluido" bajo el precio
+3. Vender y facturar: el PDF muestra subtotal sin IVA, IVA por tarifa y total
+
 ## Probar facturacion rapido
 1. `http://localhost:5173/ventas` → tab Historial
 2. Presionar "Facturar" en una venta (o "Generar factura" justo despues de cobrar)
@@ -335,9 +344,8 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 
 ## Siguientes pasos recomendados
 
-1. **IVA en productos y facturas** — tarifa por producto (0/5/19 %) y desglose en la factura
+1. **Fechas con zona horaria** — migrar a `TIMESTAMPTZ` (America/Bogota)
 2. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
-3. **Fechas con zona horaria** — migrar a `TIMESTAMPTZ` (America/Bogota)
-4. **Enviar factura por correo** — PDF al `customer_email`
-5. **Reportes PDF** — exportar reportes descargables
-6. **Tests de frontend** — Vitest + Testing Library en `client`
+3. **Enviar factura por correo** — PDF al `customer_email`
+4. **Reportes PDF** — exportar reportes descargables
+5. **Tests de frontend** — Vitest + Testing Library en `client`
