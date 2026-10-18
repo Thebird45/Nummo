@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "db:schema": "node src/db/runSql.js schema",
-    "db:seed": "node src/db/runSql.js seed"
+    "db:seed": "node src/db/runSql.js seed",
+    "test": "vitest run"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -22,6 +23,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "@electric-sql/pglite": "^0.2.17",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.1.4",
+    "vitest": "^3.2.4"
   }
 }
