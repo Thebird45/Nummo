@@ -8,7 +8,7 @@ import {
   markInvoiceSent,
   updateInvoiceDianStatus
 } from "../models/invoiceModel.js";
-import { sendInvoiceToDian } from "../services/dianService.js";
+import { consultarEstadoDian, enviarFacturaDian, proveedorDian } from "../services/dianService.js";
 import { sendMail } from "../services/emailService.js";
 import { buildInvoicePdf, buildInvoicePdfBuffer } from "../services/invoicePdf.js";
 
@@ -42,13 +42,21 @@ router.post("/", requireAuth, async (req, res, next) => {
       saleId: payload.sale_id
     });
 
-    const dian = await sendInvoiceToDian({ invoiceId: invoice.id, payload: invoice.dian_payload });
+    const dian = await enviarFacturaDian(invoice);
     const factura = await updateInvoiceDianStatus(invoice.id, {
       status: dian.status,
-      providerReference: dian.providerReference
+      provider: proveedorDian().nombre,
+      providerReference: dian.trackId,
+      cufe: dian.cufe,
+      ambiente: proveedorDian().tipoAmbiente,
+      respuesta: dian.respuesta
     });
 
-    return res.status(201).json({ message: "Factura generada correctamente", factura });
+    const message =
+      factura.status === "rechazada"
+        ? `Factura rechazada: ${dian.respuesta.mensajes.join("; ")}`
+        : "Factura generada correctamente";
+    return res.status(201).json({ message, factura });
   } catch (error) {
     if (error.message === "VENTA_NO_ENCONTRADA") {
       return res.status(404).json({ message: "La venta no existe o no pertenece a tu negocio" });
@@ -72,6 +80,27 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     }
 
     return res.status(200).json({ factura });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/consultar-estado", requireAuth, async (req, res, next) => {
+  try {
+    const factura = isUuid(req.params.id)
+      ? await getInvoiceById(req.params.id, req.user.businessId)
+      : null;
+    if (!factura) {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+
+    const dian = await consultarEstadoDian(factura);
+    const actualizada =
+      dian.status === factura.status
+        ? factura
+        : await updateInvoiceDianStatus(factura.id, { status: dian.status, respuesta: dian.respuesta });
+
+    return res.status(200).json({ factura: actualizada });
   } catch (error) {
     return next(error);
   }
@@ -112,6 +141,10 @@ router.post("/:id/enviar", requireAuth, async (req, res, next) => {
 
     if (!factura.dian_payload) {
       return res.status(409).json({ message: "Esta factura no tiene datos para generar el PDF" });
+    }
+
+    if (factura.status === "rechazada") {
+      return res.status(409).json({ message: "No se puede enviar una factura rechazada por la DIAN" });
     }
 
     const correo = payload.correo || factura.customer_email;

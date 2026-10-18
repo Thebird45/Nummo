@@ -18,6 +18,12 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   plemsiApiUrl: process.env.PLEMSI_API_URL || "",
   plemsiApiKey: process.env.PLEMSI_API_KEY || "",
+  dian: {
+    provider: process.env.DIAN_PROVIDER || "simulado",
+    // La clave tecnica real llega con la resolucion de numeracion de la DIAN
+    claveTecnica: process.env.DIAN_CLAVE_TECNICA || "clave-tecnica-de-pruebas",
+    simSegundos: Number(process.env.DIAN_SIM_SEGUNDOS ?? 10)
+  },
   emailFrom: process.env.EMAIL_FROM || "no-reply@nummo.co",
   // Sin SMTP_HOST los correos se simulan (no salen)
   smtp: {

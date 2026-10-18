@@ -125,14 +125,35 @@ export async function createInvoiceFromSale({ businessId, saleId }) {
   }
 }
 
-export async function updateInvoiceDianStatus(id, { status, providerReference }) {
+const CAMPOS_FACTURA = `
+  id, prefijo, numero, sale_id, status, provider, provider_reference, total, customer_email,
+  enviada_a, enviada_at, cufe, dian_ambiente, dian_respuesta, dian_payload, created_at
+`;
+
+// Guarda lo que responde el proveedor; los campos omitidos se conservan
+export async function updateInvoiceDianStatus(id, { status, provider, providerReference, cufe, ambiente, respuesta }) {
   const query = `
     UPDATE invoices
-    SET status = $1, provider_reference = $2, updated_at = NOW()
-    WHERE id = $3
-    RETURNING id, prefijo, numero, sale_id, status, provider_reference, total, customer_email, dian_payload, created_at
+    SET
+      status = $1,
+      provider = COALESCE($2, provider),
+      provider_reference = COALESCE($3, provider_reference),
+      cufe = COALESCE($4, cufe),
+      dian_ambiente = COALESCE($5, dian_ambiente),
+      dian_respuesta = COALESCE($6, dian_respuesta),
+      updated_at = NOW()
+    WHERE id = $7
+    RETURNING ${CAMPOS_FACTURA}
   `;
-  const { rows } = await pool.query(query, [status, providerReference, id]);
+  const { rows } = await pool.query(query, [
+    status,
+    provider ?? null,
+    providerReference ?? null,
+    cufe ?? null,
+    ambiente ?? null,
+    respuesta ? JSON.stringify(respuesta) : null,
+    id
+  ]);
   return rows[0];
 }
 
@@ -141,7 +162,8 @@ export async function getInvoicesByBusiness(businessId) {
     SELECT
       id, prefijo, numero, sale_id, status, total, created_at,
       customer_email, enviada_a, enviada_at,
-      dian_payload->'cliente'->>'nombre' AS cliente_nombre
+      dian_payload->'cliente'->>'nombre' AS cliente_nombre,
+      dian_respuesta->'mensajes' AS dian_mensajes
     FROM invoices
     WHERE business_id = $1
     ORDER BY numero DESC NULLS LAST, created_at DESC
@@ -152,9 +174,7 @@ export async function getInvoicesByBusiness(businessId) {
 
 export async function getInvoiceById(id, businessId) {
   const query = `
-    SELECT
-      id, prefijo, numero, sale_id, status, provider_reference, total, customer_email,
-      enviada_a, enviada_at, dian_payload, created_at
+    SELECT ${CAMPOS_FACTURA}
     FROM invoices
     WHERE id = $1
       AND business_id = $2

@@ -1,6 +1,7 @@
 import express from "express";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import clienteModel from "../models/clienteModel.js";
+import { errorNit } from "../services/dian/nit.js";
 
 const router = express.Router();
 
@@ -68,6 +69,9 @@ router.post("/", requireAuth, async (req, res, next) => {
     if (!nombre?.trim()) {
       return res.status(400).json({ error: "El nombre es obligatorio" });
     }
+    if (documento?.trim() && errorNit(documento)) {
+      return res.status(400).json({ error: errorNit(documento) });
+    }
     const nuevo = await clienteModel.create({
       business_id: businessId,
       nombre,
@@ -92,6 +96,9 @@ router.put("/:id", requireAuth, async (req, res, next) => {
     const { nombre, documento, telefono, correo, direccion } = req.body;
     if (!nombre?.trim()) {
       return res.status(400).json({ error: "El nombre es obligatorio" });
+    }
+    if (documento?.trim() && errorNit(documento)) {
+      return res.status(400).json({ error: errorNit(documento) });
     }
     const actualizado = await clienteModel.update(
       req.params.id,

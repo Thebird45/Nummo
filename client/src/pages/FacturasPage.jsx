@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Mail, Search, X } from "lucide-react";
+import { Download, FileText, Mail, RefreshCw, Search, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import { descargarFacturaPdf, enviarFactura, getFacturas, mensajeDeError } from "../services/facturas";
+import {
+  consultarEstadoFactura,
+  descargarFacturaPdf,
+  enviarFactura,
+  getFacturas,
+  mensajeDeError
+} from "../services/facturas";
 
 function formatCop(value) {
   const amount = Number(value || 0);
@@ -27,9 +33,43 @@ export default function FacturasPage() {
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState("");
 
+  const [consultando, setConsultando] = useState(null);
+
+  const actualizarEstado = (factura) =>
+    setFacturas((prev) =>
+      prev.map((f) =>
+        f.id === factura.id ? { ...f, status: factura.status, dian_mensajes: factura.dian_respuesta?.mensajes } : f
+      )
+    );
+
+  const consultarDian = async (id) => {
+    setConsultando(id);
+    try {
+      actualizarEstado(await consultarEstadoFactura(id));
+    } catch {
+      setError("No se pudo consultar el estado en la DIAN");
+    } finally {
+      setConsultando(null);
+    }
+  };
+
+  // Las pendientes se consultan solas al abrir la pagina
+  const consultarPendientes = async (lista) => {
+    for (const f of lista.filter((x) => x.status === "pendiente").slice(0, 20)) {
+      try {
+        actualizarEstado(await consultarEstadoFactura(f.id));
+      } catch {
+        // se puede reintentar con el boton
+      }
+    }
+  };
+
   const cargarFacturas = () =>
     getFacturas()
-      .then(setFacturas)
+      .then((lista) => {
+        setFacturas(lista);
+        consultarPendientes(lista);
+      })
       .catch(() => setError("No se pudieron cargar las facturas"))
       .finally(() => setLoading(false));
 
@@ -171,6 +211,23 @@ export default function FacturasPage() {
                         <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${estado.className}`}>
                           {estado.label}
                         </span>
+                        {f.status === "pendiente" && (
+                          <button
+                            onClick={() => consultarDian(f.id)}
+                            disabled={consultando === f.id}
+                            className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-50"
+                          >
+                            <RefreshCw size={11} className={consultando === f.id ? "animate-spin" : ""} />
+                            Consultar DIAN
+                          </button>
+                        )}
+                        {f.status === "rechazada" && f.dian_mensajes?.length > 0 && (
+                          <ul className="mt-1 max-w-xs text-[11px] text-red-600">
+                            {f.dian_mensajes.map((m) => (
+                              <li key={m}>{m}</li>
+                            ))}
+                          </ul>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">
                         {f.enviada_a ? (
@@ -183,13 +240,15 @@ export default function FacturasPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => setEnvio({ factura: f, correo: f.enviada_a || f.customer_email || "" })}
-                          className="mr-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                        >
-                          <Mail size={14} />
-                          Enviar
-                        </button>
+                        {f.status !== "rechazada" && (
+                          <button
+                            onClick={() => setEnvio({ factura: f, correo: f.enviada_a || f.customer_email || "" })}
+                            className="mr-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                          >
+                            <Mail size={14} />
+                            Enviar
+                          </button>
+                        )}
                         <button
                           onClick={() => onDescargar(f)}
                           disabled={descargando === f.id}
