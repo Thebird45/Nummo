@@ -41,6 +41,13 @@ describe("auth", () => {
     expect(res.body.token).toBeTruthy();
   });
 
+  it("el usuario demo del seed puede iniciar sesion", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "demo@nummo.co", password: "demo12345" });
+    expect(res.status).toBe(200);
+  });
+
   it("login con clave incorrecta da 401", async () => {
     const res = await request(app)
       .post("/api/auth/login")
