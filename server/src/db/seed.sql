@@ -40,8 +40,8 @@ VALUES
   ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'Cliente de mostrador', 'efectivo', 29000, NOW())
 ON CONFLICT DO NOTHING;
 
-INSERT INTO invoices (business_id, provider, provider_reference, status, customer_email)
+INSERT INTO invoices (business_id, prefijo, numero, provider, provider_reference, status, customer_email)
 VALUES
-  ('11111111-1111-1111-1111-111111111111', 'plemsi', 'PLM-1001', 'validada', 'cliente1@correo.com'),
-  ('11111111-1111-1111-1111-111111111111', 'plemsi', 'PLM-1002', 'pendiente', 'cliente2@correo.com')
+  ('11111111-1111-1111-1111-111111111111', 'FE', 1, 'plemsi', 'PLM-1001', 'validada', 'cliente1@correo.com'),
+  ('11111111-1111-1111-1111-111111111111', 'FE', 2, 'plemsi', 'PLM-1002', 'pendiente', 'cliente2@correo.com')
 ON CONFLICT DO NOTHING;
