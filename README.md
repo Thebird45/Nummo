@@ -161,8 +161,10 @@ App en: `http://localhost:5173`
 4. Rutas protegidas por token
 
 ## Credenciales predeterminadas (seed)
-- Correo: benitesjuan86@gmail.com
-- Contrasena: Juan23901
+- Correo: demo@nummo.co
+- Contrasena: demo12345
+
+Solo para desarrollo local; no usar datos reales en el seed.
 
 ## Integracion DIAN
 Archivo base: `server/src/services/dianService.js`
