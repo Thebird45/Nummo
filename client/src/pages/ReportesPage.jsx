@@ -14,6 +14,7 @@ import GraficaVentas from "../components/reportes/GraficaVentas";
 import ProductosTop from "../components/reportes/ProductosTop";
 import MetodosPago from "../components/reportes/MetodosPago";
 import { api } from "../services/api";
+import { descargarPdf, mensajeDeError } from "../services/descargas";
 
 function formatCop(value) {
   return new Intl.NumberFormat("es-CO", {
@@ -100,6 +101,8 @@ export default function ReportesPage() {
   const [metodoPagoFiltro, setMetodoPagoFiltro] = useState("todos");
   const [loading, setLoading] = useState(false);
   const [errorFetch, setErrorFetch] = useState("");
+  const [exportando, setExportando] = useState(false);
+  const [errorPdf, setErrorPdf] = useState("");
 
   const onLogout = () => {
     localStorage.removeItem("nummo_token");
@@ -295,6 +298,27 @@ export default function ReportesPage() {
     link.click();
   };
 
+  const exportarPDF = async () => {
+    const { inicio, fin } = obtenerRangoPeriodo(
+      periodoActual.tipo,
+      periodoActual.fechaInicio,
+      periodoActual.fechaFin
+    );
+    const dia = (fecha) => fecha.toLocaleDateString("en-CA");
+    setErrorPdf("");
+    setExportando(true);
+    try {
+      await descargarPdf("/reportes/pdf", `reporte-ventas-${dia(inicio)}_${dia(fin)}.pdf`, {
+        inicio: inicio.toISOString(),
+        fin: fin.toISOString()
+      });
+    } catch (err) {
+      setErrorPdf(await mensajeDeError(err, "No se pudo generar el PDF"));
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const showFallbackState = loading || errorFetch || ventasFiltradas.length === 0;
 
   if (showFallbackState) {
@@ -353,14 +377,23 @@ export default function ReportesPage() {
             <div className="rounded-lg bg-purple-500/20 p-2">
               <TrendingUp size={28} className="text-purple-400" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-xs uppercase tracking-[0.25em] text-brand-100">Reportes</p>
               <h2 className="text-3xl font-bold">Análisis de ventas</h2>
             </div>
+            <button
+              onClick={exportarPDF}
+              disabled={exportando}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <Download size={16} />
+              {exportando ? "Generando..." : "Exportar PDF"}
+            </button>
           </div>
           <p className="mt-3 text-sm text-brand-200">
             Visualiza métricas, gráficas y detalles de todas tus ventas.
           </p>
+          {errorPdf && <p className="mt-2 text-sm text-red-300">{errorPdf}</p>}
         </header>
 
         <div className="mb-4 flex-shrink-0">
