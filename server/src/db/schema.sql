@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 CREATE TABLE IF NOT EXISTS clientes (
   id          SERIAL PRIMARY KEY,
-  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   nombre      VARCHAR(200) NOT NULL,
   documento   VARCHAR(30),
   telefono    VARCHAR(20),
@@ -107,8 +107,12 @@ CREATE TABLE IF NOT EXISTS clientes (
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS idx_users_business_id ON users(business_id);
 CREATE INDEX IF NOT EXISTS idx_productos_business_id ON productos(business_id);
 CREATE INDEX IF NOT EXISTS idx_sales_business_id_created_at ON sales(business_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_invoices_business_id_created_at ON invoices(business_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_business_id ON movimientos_inventario(business_id);
+CREATE INDEX IF NOT EXISTS idx_clientes_business_id ON clientes(business_id);
+CREATE INDEX IF NOT EXISTS idx_sales_cliente_id ON sales(cliente_id);
