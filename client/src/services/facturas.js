@@ -10,6 +10,11 @@ export async function crearFactura(saleId) {
   return data.factura;
 }
 
+export async function enviarFactura(id, correo) {
+  const { data } = await api.post(`/facturas/${id}/enviar`, correo ? { correo } : {});
+  return data;
+}
+
 // El PDF requiere el token, por eso se descarga con axios y no con un <a href>
 export async function descargarFacturaPdf(factura) {
   const { data } = await api.get(`/facturas/${factura.id}/pdf`, { responseType: "blob" });

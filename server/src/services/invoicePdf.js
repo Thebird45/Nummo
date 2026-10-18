@@ -91,3 +91,14 @@ export function buildInvoicePdf(invoice) {
   doc.end();
   return doc;
 }
+
+// Para adjuntar el PDF a un correo
+export function buildInvoicePdfBuffer(invoice) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const doc = buildInvoicePdf(invoice);
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
+}

@@ -9,7 +9,7 @@ Aplicacion web SaaS para pequenos negocios en Colombia.
 - POS (catalogo, carrito, historial de ventas, tabs internos)
 - Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos)
 - Clientes (CRUD, busqueda, historial de compras, selector en POS)
-- Facturacion (factura desde una venta, consecutivo FE-n, IVA desglosado, PDF, estado DIAN simulado)
+- Facturacion (factura desde una venta, consecutivo FE-n, IVA desglosado, PDF, envio por correo, estado DIAN simulado)
 
 ## Estructura del proyecto
 
@@ -100,6 +100,7 @@ Nummo/
         │   └── ventas.js            # checkoutSchema incluye cliente_id opcional
         └── services/
             ├── dianService.js       # Stub para integracion DIAN (Plemsi/Aliaddo)
+            ├── emailService.js      # Nodemailer; sin SMTP_HOST el envio se simula
             ├── iva.js               # Desglose base/IVA (precios con IVA incluido)
             └── invoicePdf.js        # Genera el PDF con pdfkit
 ```
@@ -170,6 +171,20 @@ Solo para desarrollo local; no usar datos reales en el seed.
 Archivo base: `server/src/services/dianService.js`
 Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
 
+## Correo (SMTP)
+Configura en `server/.env` (ver `.env.example`). Sin `SMTP_HOST` el envio se **simula**: no sale ningun correo y la app lo avisa.
+
+Ejemplo con Gmail (requiere verificacion en 2 pasos y una [contrasena de aplicacion](https://myaccount.google.com/apppasswords)):
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=tu_correo@gmail.com
+SMTP_PASS=contrasena_de_aplicacion
+EMAIL_FROM=tu_correo@gmail.com
+```
+
 ## Fechas y zona horaria
 - Todas las fechas son `TIMESTAMPTZ` (guardan el instante exacto).
 - `APP_TIMEZONE` (por defecto `America/Bogota`) define que es "hoy" en dashboard y reportes, y la fecha del PDF.
@@ -180,6 +195,7 @@ Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
 - `POST /api/facturas` — `{ sale_id }`; una factura por venta, consecutivo `FE-n` por negocio
 - `GET /api/facturas/:id` — detalle con copia de emisor, cliente e items
 - `GET /api/facturas/:id/pdf` — descarga el PDF
+- `POST /api/facturas/:id/enviar` — `{ correo? }`; envia el PDF adjunto (por defecto al correo del cliente) y guarda `enviada_a` / `enviada_at`
 
 Sin cliente, la factura sale a "Consumidor final" (`222222222222`).
 
@@ -241,7 +257,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - POS (catalogo, carrito, cobro, historial con filtros)
 - Clientes (CRUD, historial de compras, aislado por negocio)
 - Reportes (`/api/reportes` con nombre del cliente)
-- Facturacion: facturar desde el historial del POS o tras cobrar, pagina `/facturas`, PDF
+- Facturacion: facturar desde el historial del POS o tras cobrar, pagina `/facturas`, PDF y envio por correo
 - IVA por producto (0/5/19 %) y desglose en factura y PDF
 - Fechas en hora de Colombia: columnas `TIMESTAMPTZ` y sesion de la DB en `APP_TIMEZONE`
 - Sidebar con todos los modulos
@@ -338,7 +354,7 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 1. `http://localhost:5173/ventas` → tab Historial
 2. Presionar "Facturar" en una venta (o "Generar factura" justo despues de cobrar)
 3. Ver el codigo `FE-n` en la venta y descargar el PDF
-4. `http://localhost:5173/facturas` → buscar y descargar
+4. `http://localhost:5173/facturas` → buscar, descargar y "Enviar" por correo (simulado si no hay SMTP)
 
 ## Probar reportes rapido
 1. `http://localhost:5173/reportes`
@@ -349,7 +365,7 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 
 ## Siguientes pasos recomendados
 
-1. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
-2. **Enviar factura por correo** — PDF al `customer_email`
-3. **Reportes PDF** — exportar reportes descargables
+1. **Reportes PDF** — exportar reportes descargables
+2. **Simulacion DIAN mas realista** — estados, CUFE de prueba y rechazos por datos faltantes
+3. **Integracion real DIAN** — requiere empresa con NIT y cuenta en Plemsi/Aliaddo (de pago)
 4. **Tests de frontend** — Vitest + Testing Library en `client`

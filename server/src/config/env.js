@@ -19,6 +19,14 @@ export const env = {
   plemsiApiUrl: process.env.PLEMSI_API_URL || "",
   plemsiApiKey: process.env.PLEMSI_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "no-reply@nummo.co",
+  // Sin SMTP_HOST los correos se simulan (no salen)
+  smtp: {
+    host: process.env.SMTP_HOST || "",
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: (process.env.SMTP_SECURE || "true") === "true",
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || ""
+  },
   // Zona del negocio: define que es "hoy" en dashboard, reportes y PDF
   timezone: process.env.APP_TIMEZONE || "America/Bogota"
 };

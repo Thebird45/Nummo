@@ -155,3 +155,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_sale_id ON invoices(sale_id) WHERE
 -- IVA: los precios incluyen IVA; la tarifa se copia a sale_items al vender
 ALTER TABLE productos ADD COLUMN IF NOT EXISTS iva_tarifa NUMERIC(5,2) NOT NULL DEFAULT 19 CHECK (iva_tarifa IN (0, 5, 19));
 ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS iva_tarifa NUMERIC(5,2);
+
+-- Envio de facturas por correo
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS enviada_a VARCHAR(120);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS enviada_at TIMESTAMPTZ;
