@@ -286,6 +286,17 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 
 ---
 
+## Tests (backend)
+
+Usan PGlite (Postgres en memoria), no requieren Docker:
+
+```bash
+cd server
+npm test
+```
+
+Corren automaticamente en cada PR hacia `main` (GitHub Actions).
+
 ## Probar inventario rapido
 1. `http://localhost:5173/inventario`
 2. Crear producto y verificar tabla
