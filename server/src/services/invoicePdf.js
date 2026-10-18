@@ -15,14 +15,9 @@ const ESTADOS = {
   rechazada: "Rechazada por la DIAN"
 };
 
-// QR (modulos dibujados como cuadros) con el CUFE al lado
-function dibujarQr(doc, invoice, x, y) {
-  const datos = datosCufe(invoice, {
-    claveTecnica: "",
-    tipoAmbiente: invoice.dian_ambiente || "2",
-    timezone: env.timezone
-  });
-  const { modules } = QRCode.create(contenidoQr(invoice, datos, invoice.cufe), { errorCorrectionLevel: "M" });
+// QR (modulos dibujados como cuadros) con el CUFE/CUDE al lado
+export function dibujarQrDian(doc, { contenido, rotulo, codigo, validado }, x, y) {
+  const { modules } = QRCode.create(contenido, { errorCorrectionLevel: "M" });
   const lado = 110;
   const celda = lado / modules.size;
   for (let fila = 0; fila < modules.size; fila += 1) {
@@ -32,9 +27,9 @@ function dibujarQr(doc, invoice, x, y) {
   }
   doc.fill("black");
 
-  doc.font("Helvetica-Bold").fontSize(8).fillColor("black").text("CUFE:", x + lado + 12, y + 4);
-  doc.font("Helvetica").fontSize(7).text(invoice.cufe, x + lado + 12, y + 16, { width: 300 });
-  const estado = invoice.status === "validada" ? "Validada por la DIAN" : "En validacion DIAN";
+  doc.font("Helvetica-Bold").fontSize(8).fillColor("black").text(`${rotulo}:`, x + lado + 12, y + 4);
+  doc.font("Helvetica").fontSize(7).text(codigo, x + lado + 12, y + 16, { width: 300 });
+  const estado = validado ? "Validada por la DIAN" : "En validacion DIAN";
   doc.font("Helvetica").fontSize(8).fillColor("gray").text(estado, x + lado + 12, y + 70);
   doc.fillColor("black");
 }
@@ -113,7 +108,13 @@ export function buildInvoicePdf(invoice) {
 
   y += 45;
   if (invoice.cufe) {
-    dibujarQr(doc, invoice, 50, y);
+    const datos = datosCufe(invoice, { claveTecnica: "", tipoAmbiente: invoice.dian_ambiente || "2", timezone: env.timezone });
+    dibujarQrDian(
+      doc,
+      { contenido: contenidoQr(datos, invoice.cufe), rotulo: "CUFE", codigo: invoice.cufe, validado: invoice.status === "validada" },
+      50,
+      y
+    );
   }
   if (invoice.status === "rechazada") {
     const motivos = invoice.dian_respuesta?.mensajes || [];

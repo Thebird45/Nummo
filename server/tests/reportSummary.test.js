@@ -58,3 +58,15 @@ describe("resumirVentas", () => {
     expect(r.productosTop).toEqual([]);
   });
 });
+
+describe("resumirVentas con notas credito", () => {
+  it("resta las devoluciones al total neto", () => {
+    const r = resumirVentas(
+      [{ fecha: "2026-10-18T15:00:00Z", total: 10000, payment_method: "efectivo", items: [] }],
+      { inicio: "2026-10-18T05:00:00Z", fin: "2026-10-19T04:59:59Z", timezone: "America/Bogota", notas: [{ total: 2500 }] }
+    );
+    expect(r.totalDevoluciones).toBe(2500);
+    expect(r.totalNeto).toBe(7500);
+    expect(r.notasCredito).toBe(1);
+  });
+});

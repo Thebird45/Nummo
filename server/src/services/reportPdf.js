@@ -110,6 +110,15 @@ export function buildReportPdf({ negocio, inicio, fin, resumen }) {
   });
   doc.y = kpiTop + 52;
 
+  if (resumen.totalDevoluciones > 0) {
+    doc.font("Helvetica").fontSize(10).fillColor(COLOR_TEXTO).text(
+      `Devoluciones (${resumen.notasCredito} nota${resumen.notasCredito === 1 ? "" : "s"} credito): -${cop.format(resumen.totalDevoluciones)}   ·   Total neto: ${cop.format(resumen.totalNeto)}`,
+      LEFT,
+      kpiTop + 62
+    );
+    doc.y = kpiTop + 74;
+  }
+
   seccion(doc, TITULO_SERIE[resumen.agrupacion]);
   grafica(doc, resumen.serie, resumen.agrupacion);
 

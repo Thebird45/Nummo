@@ -24,7 +24,7 @@ function top(map, ordenarPor, limite) {
   return [...map.values()].sort((a, b) => b[ordenarPor] - a[ordenarPor]).slice(0, limite);
 }
 
-export function resumirVentas(ventas, { inicio, fin, timezone }) {
+export function resumirVentas(ventas, { inicio, fin, timezone, notas = [] }) {
   const grupo = agrupador(inicio, fin);
 
   // Serie continua: los periodos sin ventas aparecen en cero
@@ -73,6 +73,10 @@ export function resumirVentas(ventas, { inicio, fin, timezone }) {
 
   return {
     totalVentas,
+    // Notas credito del periodo (anulaciones y devoluciones)
+    totalDevoluciones: notas.reduce((suma, nota) => suma + Number(nota.total), 0),
+    totalNeto: totalVentas - notas.reduce((suma, nota) => suma + Number(nota.total), 0),
+    notasCredito: notas.length,
     transacciones: ventas.length,
     ticketPromedio: ventas.length > 0 ? totalVentas / ventas.length : 0,
     agrupacion: grupo.tipo,

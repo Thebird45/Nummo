@@ -22,6 +22,8 @@ export const env = {
     provider: process.env.DIAN_PROVIDER || "simulado",
     // La clave tecnica real llega con la resolucion de numeracion de la DIAN
     claveTecnica: process.env.DIAN_CLAVE_TECNICA || "clave-tecnica-de-pruebas",
+    // PIN del software registrado ante la DIAN; se usa en el CUDE de las notas
+    softwarePin: process.env.DIAN_SOFTWARE_PIN || "pin-de-pruebas",
     simSegundos: Number(process.env.DIAN_SIM_SEGUNDOS ?? 10)
   },
   emailFrom: process.env.EMAIL_FROM || "no-reply@nummo.co",

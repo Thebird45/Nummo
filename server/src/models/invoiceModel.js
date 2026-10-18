@@ -250,7 +250,24 @@ export async function getInvoicesByBusiness(businessId) {
       id, prefijo, numero, sale_id, status, total, created_at,
       customer_email, enviada_a, enviada_at,
       dian_payload->'cliente'->>'nombre' AS cliente_nombre,
-      dian_respuesta->'mensajes' AS dian_mensajes
+      dian_respuesta->'mensajes' AS dian_mensajes,
+      (
+        SELECT COALESCE(
+          json_agg(json_build_object(
+            'id', nc.id, 'codigo', nc.prefijo || '-' || nc.numero, 'total', nc.total,
+            'status', nc.status, 'concepto', nc.concepto
+          ) ORDER BY nc.numero),
+          '[]'
+        )
+        FROM notas_credito nc
+        WHERE nc.invoice_id = invoices.id
+      ) AS notas_credito,
+      (
+        SELECT COALESCE(SUM(nc.total), 0)
+        FROM notas_credito nc
+        WHERE nc.invoice_id = invoices.id
+          AND nc.status <> 'rechazada'
+      ) AS total_acreditado
     FROM invoices
     WHERE business_id = $1
     ORDER BY numero DESC NULLS LAST, created_at DESC

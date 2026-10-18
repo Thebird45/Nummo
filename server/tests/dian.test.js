@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../src/app.js";
 import { env } from "../src/config/env.js";
-import { calcularCufe, datosCufe, fechaHoraDian } from "../src/services/dian/cufe.js";
+import { calcularCude, calcularCufe, datosCufe, fechaHoraDian } from "../src/services/dian/cufe.js";
 import { digitoVerificacion, nitValido } from "../src/services/dian/nit.js";
 import { proveedorSimulado } from "../src/services/dian/simulado.js";
 import { validarFactura } from "../src/services/dian/validaciones.js";
@@ -27,6 +27,39 @@ describe("CUFE y NIT", () => {
     expect(cufe).toBe(
       "8bb918b19ba22a694f1da11c643b5e9de39adf60311cf179179e9b33381030bcd4c3c3f156c506ed5908f9276f5bd9b4"
     );
+  });
+
+  it("CUDE reproduce los ejemplos de nota credito y nota debito del anexo", () => {
+    expect(
+      calcularCude({
+        numFac: "8110007871",
+        fecFac: "2019-01-12",
+        horFac: "07:00:00-05:00",
+        valFac: 5000,
+        valIva: 950,
+        valTot: 5950,
+        nitOfe: "900373076",
+        numAdq: "8355990",
+        softwarePin: "12301",
+        tipoAmbiente: "1"
+      })
+    ).toBe("907e4444decc9e59c160a2fb3b6659b33dc5b632a5008922b9a62f83f757b1c448e47f5867f2b50dbdb96f48c7681168");
+
+    expect(
+      calcularCude({
+        numFac: "ND1001",
+        fecFac: "2019-01-18",
+        horFac: "10:58:00-05:00",
+        valFac: 30000,
+        valIva: 0,
+        valInc: 2400,
+        valTot: 32400,
+        nitOfe: "900197264",
+        numAdq: "10254102",
+        softwarePin: "10201",
+        tipoAmbiente: "2"
+      })
+    ).toBe("3fa73a86d57d9341c536afde1f85c4efd9d4591c2c22bce4dfb0e6b0d2e83b8f047a8bde7098292e9d2493e60d1c31da");
   });
 
   it("calcula el digito de verificacion del NIT", () => {

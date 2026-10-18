@@ -28,6 +28,25 @@ export async function enviarFactura(id, correo) {
   return data;
 }
 
+export async function getAcreditable(id) {
+  const { data } = await api.get(`/facturas/${id}/acreditable`);
+  return data.items;
+}
+
+export async function crearNotaCredito(id, datos) {
+  const { data } = await api.post(`/facturas/${id}/notas-credito`, datos);
+  return data;
+}
+
+export async function consultarEstadoNota(id) {
+  const { data } = await api.post(`/notas-credito/${id}/consultar-estado`);
+  return data.nota;
+}
+
+export async function descargarNotaPdf(nota) {
+  await descargarPdf(`/notas-credito/${nota.id}/pdf`, `nota-credito-${nota.codigo}.pdf`);
+}
+
 export async function descargarFacturaPdf(factura) {
   await descargarPdf(`/facturas/${factura.id}/pdf`, `factura-${factura.codigo}.pdf`);
 }

@@ -102,6 +102,7 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(false);
   const [errorFetch, setErrorFetch] = useState("");
   const [exportando, setExportando] = useState(false);
+  const [notasCredito, setNotasCredito] = useState([]);
   const [errorPdf, setErrorPdf] = useState("");
 
   const onLogout = () => {
@@ -131,6 +132,7 @@ export default function ReportesPage() {
     ])
       .then(([respActual, respAnterior]) => {
         setVentasFiltradas(respActual.data.ventas || []);
+        setNotasCredito(respActual.data.notas_credito || []);
         setVentasAnterior(respAnterior.data.ventas || []);
       })
       .catch((err) => {
@@ -399,6 +401,19 @@ export default function ReportesPage() {
         <div className="mb-4 flex-shrink-0">
           <FiltrosPeriodo periodoActual={periodoActual} onPeriodoChange={setPeriodoActual} />
         </div>
+
+        {notasCredito.length > 0 && (
+          <div className="mb-4 flex-shrink-0 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+            Devoluciones ({notasCredito.length} nota{notasCredito.length === 1 ? "" : "s"} credito):{" "}
+            <span className="font-semibold text-red-600">
+              -{formatCop(notasCredito.reduce((suma, n) => suma + Number(n.total), 0))}
+            </span>
+            {" · "}Total neto:{" "}
+            <span className="font-semibold text-slate-900">
+              {formatCop(kpis.totalVentas - notasCredito.reduce((suma, n) => suma + Number(n.total), 0))}
+            </span>
+          </div>
+        )}
 
         <div className="mb-4 flex-shrink-0 border-b border-slate-200">
           <div className="flex gap-1">
