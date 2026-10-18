@@ -20,6 +20,10 @@ export async function enviarFacturaDian(factura) {
   return proveedor().enviar(factura);
 }
 
+export async function enviarNotaCreditoDian(nota) {
+  return proveedor().enviarNotaCredito(nota);
+}
+
 export async function consultarEstadoDian(factura) {
   return proveedor().consultar(factura);
 }

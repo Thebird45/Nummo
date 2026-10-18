@@ -185,6 +185,15 @@ Flujo: al crear la factura se **valida** (NIT con digito de verificacion, produc
 - **QR:** datos de la factura + enlace a `catalogo-vpfe` (o `catalogo-vpfe-hab` en pruebas).
 - **NIT:** se valida el digito de verificacion al registrar el negocio, al crear/editar clientes y antes de enviar a la DIAN.
 
+### Notas credito
+Corrigen o anulan facturas **validadas** (las rechazadas se corrigen con `reenviar`).
+- **Conceptos DIAN:** `2` anulacion (acredita todo lo que queda) y `1` devolucion parcial (productos y cantidades). El motivo es obligatorio.
+- Nunca se acredita mas de lo facturado: cada nota descuenta lo ya acreditado por notas anteriores no rechazadas.
+- Consecutivo propio `NC-n` y **CUDE** (mismo esquema del CUFE con el PIN del software, `DIAN_SOFTWARE_PIN`), verificado contra los ejemplos de nota credito y nota debito del anexo.
+- Opcionalmente devuelve los productos al inventario (movimiento de entrada "Nota credito NC-n").
+- Facturacion muestra las notas de cada factura y la marca "Anulada" o "Con devolucion"; Reportes muestra devoluciones y total neto del periodo.
+- `GET /api/facturas/:id/acreditable`, `POST /api/facturas/:id/notas-credito`, `POST /api/notas-credito/:id/consultar-estado`, `GET /api/notas-credito/:id/pdf`.
+
 ### Resolucion de numeracion
 Cada negocio registra en **Configuracion** la autorizacion de numeracion que le expide la DIAN: numero y fecha de resolucion, prefijo (hasta 4 caracteres), rango (desde/hasta), vigencia y clave tecnica.
 - Solo el **dueno** puede registrarla. Una nueva reemplaza a la activa; las anteriores quedan en el historial.
@@ -299,7 +308,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
 - Facturas emitidas antes del IVA no tienen desglose (el PDF muestra solo el total)
 - DIAN en ambiente de pruebas (proveedor `simulado`): las facturas no tienen validez fiscal
-- Facturas validadas no se pueden anular ni corregir todavia (faltan notas credito)
+- Notas credito no se envian por correo todavia; el dashboard ("ingresos hoy") no descuenta devoluciones
 
 ---
 
@@ -397,6 +406,7 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 ## Siguientes pasos recomendados
 
 Para salir a produccion (vender a pymes):
-1. **Notas credito** — anular o corregir facturas validadas (devolucion y anulacion)
-2. **Adaptador Plemsi (o Aliaddo)** — `DIAN_PROVIDER=plemsi`; requiere cuenta del proveedor
-3. **Tests de frontend** — Vitest + Testing Library en `client`
+1. **Adaptador Plemsi (o Aliaddo)** — `DIAN_PROVIDER=plemsi`; requiere cuenta del proveedor
+2. **Despliegue** — hosting del backend + Postgres administrado, dominio y HTTPS
+3. **Enviar notas credito por correo** y descontar devoluciones en el dashboard
+4. **Tests de frontend** — Vitest + Testing Library en `client`

@@ -3,6 +3,17 @@ import { nitValido } from "./nit.js";
 const centavos = (valor) => Math.round(Number(valor || 0) * 100);
 
 // Reglas que la DIAN rechazaria; se revisan antes de enviar al proveedor
+export function validarNotaCredito(payload) {
+  const errores = validarFactura(payload);
+  if (!payload.factura_referencia?.cufe) {
+    errores.push("La nota credito debe referenciar una factura con CUFE");
+  }
+  if (!payload.motivo?.trim()) {
+    errores.push("La nota credito debe indicar el motivo");
+  }
+  return errores;
+}
+
 export function validarFactura(payload) {
   const errores = [];
   const { emisor, cliente, items = [], subtotal, total_iva, total } = payload;

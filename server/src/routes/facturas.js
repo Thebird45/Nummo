@@ -9,7 +9,18 @@ import {
   rebuildRejectedInvoice,
   updateInvoiceDianStatus
 } from "../models/invoiceModel.js";
-import { consultarEstadoDian, enviarFacturaDian, proveedorDian } from "../services/dianService.js";
+import {
+  createNotaCredito,
+  getItemsAcreditables,
+  reintegrarInventario,
+  updateNotaDianStatus
+} from "../models/notaCreditoModel.js";
+import {
+  consultarEstadoDian,
+  enviarFacturaDian,
+  enviarNotaCreditoDian,
+  proveedorDian
+} from "../services/dianService.js";
 import { sendMail } from "../services/emailService.js";
 import { buildInvoicePdf, buildInvoicePdfBuffer } from "../services/invoicePdf.js";
 
@@ -22,6 +33,20 @@ const createSchema = z.object({
 const sendSchema = z.object({
   correo: z.string().trim().email("Correo invalido").optional()
 });
+
+const notaSchema = z
+  .object({
+    concepto: z.coerce.number().refine((c) => c === 1 || c === 2, "Concepto invalido (1 devolucion, 2 anulacion)"),
+    motivo: z.string().trim().min(5, "Describe el motivo (minimo 5 caracteres)").max(500),
+    items: z
+      .array(z.object({ producto_id: z.string().uuid(), cantidad: z.coerce.number().int().positive() }))
+      .optional(),
+    reintegrar_inventario: z.boolean().default(true)
+  })
+  .refine((n) => n.concepto === 2 || n.items?.length > 0, {
+    message: "Indica los productos y cantidades devueltos",
+    path: ["items"]
+  });
 
 const isUuid = (value) => z.string().uuid().safeParse(value).success;
 
@@ -126,6 +151,70 @@ router.post("/:id/reenviar", requireAuth, async (req, res, next) => {
       return res.status(409).json({ message: "Solo se pueden reenviar facturas rechazadas" });
     }
     return respuestaNumeracion(res, error) || next(error);
+  }
+});
+
+router.get("/:id/acreditable", requireAuth, async (req, res, next) => {
+  try {
+    const factura = isUuid(req.params.id) ? await getInvoiceById(req.params.id, req.user.businessId) : null;
+    if (!factura) {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+    return res.status(200).json({ items: await getItemsAcreditables(factura.id) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/notas-credito", requireAuth, async (req, res, next) => {
+  try {
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+    const datos = notaSchema.parse(req.body);
+    const creada = await createNotaCredito({
+      businessId: req.user.businessId,
+      invoiceId: req.params.id,
+      concepto: datos.concepto,
+      motivo: datos.motivo,
+      items: datos.items || [],
+      reintegrarInventario: datos.reintegrar_inventario
+    });
+
+    const dian = await enviarNotaCreditoDian(creada);
+    const nota = await updateNotaDianStatus(creada.id, {
+      status: dian.status,
+      provider: proveedorDian().nombre,
+      providerReference: dian.trackId,
+      cude: dian.cude,
+      ambiente: proveedorDian().tipoAmbiente,
+      respuesta: dian.respuesta
+    });
+
+    if (nota.status !== "rechazada" && nota.reintegrar_inventario) {
+      await reintegrarInventario(nota, req.user.businessId);
+    }
+
+    const codigo = `${nota.prefijo}-${nota.numero}`;
+    const message =
+      nota.status === "rechazada"
+        ? `Nota credito ${codigo} rechazada: ${dian.respuesta.mensajes.join("; ")}`
+        : `Nota credito ${codigo} generada`;
+    return res.status(201).json({ message, nota });
+  } catch (error) {
+    if (error.message === "FACTURA_NO_ENCONTRADA") {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+    if (error.message === "FACTURA_NO_VALIDADA") {
+      return res.status(409).json({ message: "Solo se pueden hacer notas credito a facturas validadas por la DIAN" });
+    }
+    if (error.message === "CANTIDAD_INVALIDA") {
+      return res.status(400).json({ message: "La cantidad supera lo que queda por acreditar de ese producto" });
+    }
+    if (error.message === "NADA_POR_ACREDITAR") {
+      return res.status(409).json({ message: "La factura ya fue acreditada por completo" });
+    }
+    return next(error);
   }
 });
 

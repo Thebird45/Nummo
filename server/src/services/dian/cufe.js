@@ -39,6 +39,11 @@ export function calcularCufe({
   return crypto.createHash("sha384").update(cadena).digest("hex");
 }
 
+// CUDE (notas credito/debito): mismo esquema del CUFE con el PIN del software en vez de la clave tecnica
+export function calcularCude({ softwarePin, ...datos }) {
+  return calcularCufe({ ...datos, claveTecnica: softwarePin });
+}
+
 // Fecha "2026-10-17" y hora "22:30:00-05:00" en la zona del negocio
 export function fechaHoraDian(fecha, timezone) {
   const partes = Object.fromEntries(
@@ -86,8 +91,8 @@ const CATALOGO = {
   2: "https://catalogo-vpfe-hab.dian.gov.co/document/searchqr?documentkey="
 };
 
-// Texto del QR: datos minimos de la factura y enlace de consulta en la DIAN
-export function contenidoQr(factura, datos, cufe) {
+// Texto del QR: datos minimos del documento y enlace de consulta en la DIAN
+export function contenidoQr(datos, codigo, rotulo = "CUFE") {
   return [
     `NumFac: ${datos.numFac}`,
     `FecFac: ${datos.fecFac}`,
@@ -98,7 +103,7 @@ export function contenidoQr(factura, datos, cufe) {
     `ValIva: ${dosDecimales(datos.valIva)}`,
     "ValOtroIm: 0.00",
     `ValTolFac: ${dosDecimales(datos.valTot)}`,
-    `CUFE: ${cufe}`,
-    `QRCode: ${CATALOGO[datos.tipoAmbiente] || CATALOGO[2]}${cufe}`
+    `${rotulo}: ${codigo}`,
+    `QRCode: ${CATALOGO[datos.tipoAmbiente] || CATALOGO[2]}${codigo}`
   ].join("\n");
 }

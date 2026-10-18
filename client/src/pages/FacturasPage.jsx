@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Mail, RefreshCw, Search, X } from "lucide-react";
+import { Download, FileMinus, FileText, Mail, RefreshCw, Search, X } from "lucide-react";
 import AlertasResolucion from "../components/AlertasResolucion";
+import NotaCreditoModal from "../components/NotaCreditoModal";
 import Sidebar from "../components/Sidebar";
 import {
   consultarEstadoFactura,
+  consultarEstadoNota,
   descargarFacturaPdf,
+  descargarNotaPdf,
   enviarFactura,
   getFacturas,
   mensajeDeError,
@@ -38,6 +41,36 @@ export default function FacturasPage() {
 
   const [consultando, setConsultando] = useState(null);
   const [alertas, setAlertas] = useState([]);
+  const [notaPara, setNotaPara] = useState(null);
+
+  const actualizarNota = (facturaId, nota) =>
+    setFacturas((prev) =>
+      prev.map((f) =>
+        f.id === facturaId
+          ? { ...f, notas_credito: f.notas_credito.map((n) => (n.id === nota.id ? { ...n, status: nota.status } : n)) }
+          : f
+      )
+    );
+
+  const onNotaCreada = async (data) => {
+    setNotaPara(null);
+    if (data.nota.status === "rechazada") {
+      setError(data.message);
+    } else {
+      setMensaje(data.message);
+      setTimeout(() => setMensaje(""), 5000);
+    }
+    await cargarFacturas();
+  };
+
+  const onDescargarNota = async (nota) => {
+    setError("");
+    try {
+      await descargarNotaPdf(nota);
+    } catch (apiError) {
+      setError(await mensajeDeError(apiError, "No se pudo descargar la nota credito"));
+    }
+  };
 
   const actualizarEstado = (factura) =>
     setFacturas((prev) =>
@@ -91,6 +124,15 @@ export default function FacturasPage() {
         actualizarEstado(await consultarEstadoFactura(f.id));
       } catch {
         // se puede reintentar con el boton
+      }
+    }
+    for (const f of lista) {
+      for (const nota of (f.notas_credito || []).filter((n) => n.status === "pendiente")) {
+        try {
+          actualizarNota(f.id, await consultarEstadoNota(nota.id));
+        } catch {
+          // se reintenta al recargar
+        }
       }
     }
   };
@@ -237,9 +279,27 @@ export default function FacturasPage() {
               <tbody className="divide-y divide-slate-100">
                 {filtradas.map((f) => {
                   const estado = estados[f.status] || { label: f.status, className: "bg-slate-100 text-slate-600" };
+                  const acreditado = Number(f.total_acreditado || 0);
+                  const anulada = acreditado > 0 && acreditado >= Number(f.total);
                   return (
-                    <tr key={f.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-semibold text-slate-900">{f.codigo}</td>
+                    <tr key={f.id} className="hover:bg-slate-50 align-top">
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {f.codigo}
+                        {f.notas_credito?.map((n) => (
+                          <button
+                            key={n.id}
+                            onClick={() => onDescargarNota(n)}
+                            title="Descargar PDF de la nota credito"
+                            className={`mt-1 flex items-center gap-1 text-[11px] font-medium ${
+                              n.status === "rechazada" ? "text-red-500 line-through" : "text-slate-500 hover:text-slate-800"
+                            }`}
+                          >
+                            <FileMinus size={11} />
+                            {n.codigo} · -{formatCop(n.total)}
+                            {n.status === "pendiente" && " (pendiente)"}
+                          </button>
+                        ))}
+                      </td>
                       <td className="px-4 py-3 text-slate-500">{new Date(f.created_at).toLocaleDateString("es-CO")}</td>
                       <td className="px-4 py-3 text-slate-700">{f.cliente_nombre || "—"}</td>
                       <td className="px-4 py-3 font-semibold text-emerald-700">{f.total != null ? formatCop(f.total) : "—"}</td>
@@ -247,6 +307,11 @@ export default function FacturasPage() {
                         <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${estado.className}`}>
                           {estado.label}
                         </span>
+                        {acreditado > 0 && (
+                          <span className="ml-1 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                            {anulada ? "Anulada" : "Con devolucion"}
+                          </span>
+                        )}
                         {f.status === "pendiente" && (
                           <button
                             onClick={() => consultarDian(f.id)}
@@ -291,7 +356,16 @@ export default function FacturasPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {f.status !== "rechazada" && (
+                        {f.status === "validada" && !anulada && (
+                          <button
+                            onClick={() => setNotaPara(f)}
+                            className="mr-2 inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                          >
+                            <FileMinus size={14} />
+                            Nota credito
+                          </button>
+                        )}
+                        {f.status !== "rechazada" && !anulada && (
                           <button
                             onClick={() => setEnvio({ factura: f, correo: f.enviada_a || f.customer_email || "" })}
                             className="mr-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
@@ -317,6 +391,8 @@ export default function FacturasPage() {
           )}
         </div>
       </section>
+
+      {notaPara && <NotaCreditoModal factura={notaPara} onCerrar={() => setNotaPara(null)} onCreada={onNotaCreada} />}
 
       {envio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">

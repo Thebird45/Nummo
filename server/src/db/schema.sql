@@ -184,3 +184,33 @@ CREATE TABLE IF NOT EXISTS resoluciones_facturacion (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_resolucion_activa ON resoluciones_facturacion(business_id) WHERE activa;
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS resolucion_id UUID REFERENCES resoluciones_facturacion(id);
+
+-- Notas credito: anulacion o devolucion parcial de facturas validadas
+CREATE TABLE IF NOT EXISTS notas_credito (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE RESTRICT,
+  prefijo VARCHAR(4) NOT NULL DEFAULT 'NC',
+  numero INTEGER NOT NULL,
+  concepto SMALLINT NOT NULL CHECK (concepto IN (1, 2)),
+  motivo TEXT NOT NULL,
+  reintegrar_inventario BOOLEAN NOT NULL DEFAULT TRUE,
+  total NUMERIC(12,2) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (status IN ('validada', 'rechazada', 'pendiente')),
+  provider VARCHAR(20),
+  provider_reference VARCHAR(120),
+  cude VARCHAR(96),
+  dian_ambiente VARCHAR(1),
+  dian_respuesta JSONB,
+  dian_payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (business_id, prefijo, numero)
+);
+CREATE TABLE IF NOT EXISTS notas_credito_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nota_id UUID NOT NULL REFERENCES notas_credito(id) ON DELETE CASCADE,
+  producto_id UUID NOT NULL REFERENCES productos(id) ON DELETE RESTRICT,
+  cantidad INTEGER NOT NULL CHECK (cantidad > 0)
+);
+CREATE INDEX IF NOT EXISTS idx_notas_credito_invoice ON notas_credito(invoice_id);
