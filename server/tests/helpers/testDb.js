@@ -29,7 +29,8 @@ function readSql(name) {
 }
 
 export async function resetDb() {
-  await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+  // Igual que pool.js: la sesion usa la zona del negocio
+  await db.exec("SET TIME ZONE 'America/Bogota'; DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
   await db.exec(readSql("schema"));
   await db.exec(readSql("seed"));
 }

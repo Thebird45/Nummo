@@ -170,6 +170,11 @@ Solo para desarrollo local; no usar datos reales en el seed.
 Archivo base: `server/src/services/dianService.js`
 Actualmente en modo stub para conectar API real de Plemsi/Aliaddo.
 
+## Fechas y zona horaria
+- Todas las fechas son `TIMESTAMPTZ` (guardan el instante exacto).
+- `APP_TIMEZONE` (por defecto `America/Bogota`) define que es "hoy" en dashboard y reportes, y la fecha del PDF.
+- Bases creadas antes: al correr `schema.sql` las columnas `TIMESTAMP` se convierten asumiendo que guardaban UTC (lo normal en el Postgres de Docker). Es seguro correrlo varias veces.
+
 ## Endpoints facturacion
 - `GET /api/facturas` — lista (mas reciente primero)
 - `POST /api/facturas` — `{ sale_id }`; una factura por venta, consecutivo `FE-n` por negocio
@@ -238,6 +243,7 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - Reportes (`/api/reportes` con nombre del cliente)
 - Facturacion: facturar desde el historial del POS o tras cobrar, pagina `/facturas`, PDF
 - IVA por producto (0/5/19 %) y desglose en factura y PDF
+- Fechas en hora de Colombia: columnas `TIMESTAMPTZ` y sesion de la DB en `APP_TIMEZONE`
 - Sidebar con todos los modulos
 - Tests de backend + CI en cada PR
 
@@ -248,7 +254,6 @@ Importar siempre como `import { api } from './api'`, nunca como default.
 - Probar en el navegador el selector de cliente del POS (la API ya esta cubierta por tests)
 - Facturas emitidas antes del IVA no tienen desglose (el PDF muestra solo el total)
 - DIAN simulada: toda factura queda en "pendiente"
-- Fechas en UTC: las tablas usan `TIMESTAMP` sin zona, de noche se ve la fecha del dia siguiente
 
 ---
 
@@ -344,8 +349,7 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 
 ## Siguientes pasos recomendados
 
-1. **Fechas con zona horaria** — migrar a `TIMESTAMPTZ` (America/Bogota)
-2. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
-3. **Enviar factura por correo** — PDF al `customer_email`
-4. **Reportes PDF** — exportar reportes descargables
-5. **Tests de frontend** — Vitest + Testing Library en `client`
+1. **Integracion real DIAN** — conectar Plemsi o Aliaddo en `dianService.js`
+2. **Enviar factura por correo** — PDF al `customer_email`
+3. **Reportes PDF** — exportar reportes descargables
+4. **Tests de frontend** — Vitest + Testing Library en `client`

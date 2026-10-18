@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { env } from "../config/env.js";
 
 const cop = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -26,7 +27,7 @@ export function buildInvoicePdf(invoice) {
   doc.moveUp(4).fontSize(14).font("Helvetica-Bold")
     .text(`Factura ${invoice.prefijo}-${invoice.numero}`, { align: "right" });
   doc.fontSize(10).font("Helvetica")
-    .text(`Fecha: ${new Date(invoice.created_at).toLocaleDateString("es-CO")}`, { align: "right" })
+    .text(`Fecha: ${new Date(invoice.created_at).toLocaleDateString("es-CO", { timeZone: env.timezone })}`, { align: "right" })
     .text(`Pago: ${venta.metodo_pago}`, { align: "right" })
     .text(ESTADOS[invoice.status] || invoice.status, { align: "right" });
 
