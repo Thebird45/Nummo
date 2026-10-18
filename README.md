@@ -9,7 +9,8 @@ Aplicacion web SaaS para pequenos negocios en Colombia.
 - POS (catalogo, carrito, historial de ventas, tabs internos)
 - Reportes (KPIs, graficas Recharts, metodos de pago, productos top, clientes, tabs internos, exportar PDF)
 - Clientes (CRUD, busqueda, historial de compras, selector en POS)
-- Facturacion electronica (factura desde una venta, consecutivo FE-n, IVA desglosado, CUFE y QR, validacion DIAN, PDF, envio por correo)
+- Facturacion electronica (factura desde una venta, numeracion por resolucion DIAN, IVA desglosado, CUFE y QR, validacion DIAN, PDF, envio por correo)
+- Configuracion (resolucion de numeracion DIAN con alertas de vencimiento y rango)
 
 ## Estructura del proyecto
 
@@ -183,6 +184,15 @@ Flujo: al crear la factura se **valida** (NIT con digito de verificacion, produc
 - **CUFE:** SHA-384 del Anexo Tecnico 1.9 (seccion 11.2), verificado contra el ejemplo oficial de la DIAN en los tests. Usa `DIAN_CLAVE_TECNICA`, que en produccion entrega la DIAN con la resolucion de numeracion.
 - **QR:** datos de la factura + enlace a `catalogo-vpfe` (o `catalogo-vpfe-hab` en pruebas).
 - **NIT:** se valida el digito de verificacion al registrar el negocio, al crear/editar clientes y antes de enviar a la DIAN.
+
+### Resolucion de numeracion
+Cada negocio registra en **Configuracion** la autorizacion de numeracion que le expide la DIAN: numero y fecha de resolucion, prefijo (hasta 4 caracteres), rango (desde/hasta), vigencia y clave tecnica.
+- Solo el **dueno** puede registrarla. Una nueva reemplaza a la activa; las anteriores quedan en el historial.
+- Al facturar se usa la activa: el numero sale de su rango, el CUFE usa su clave tecnica (si no tiene, `DIAN_CLAVE_TECNICA`) y el PDF incluye la leyenda de la autorizacion.
+- Sin resolucion, vencida o con el rango agotado **no se puede facturar** (409 con el motivo).
+- Alertas cuando faltan 30 dias o menos para vencer o queda el 10 % del rango.
+- `GET /api/resoluciones` (activa, alertas, historial) y `POST /api/resoluciones`.
+- El negocio del seed trae una resolucion de pruebas (FE del 1 al 5000).
 
 ## Endpoints reportes
 - `GET /api/reportes?inicio&fin` — ventas del periodo (ISO). Sin fechas: ultimos 30 dias
@@ -386,7 +396,6 @@ Corren automaticamente en cada PR hacia `main` (GitHub Actions).
 ## Siguientes pasos recomendados
 
 Para salir a produccion (vender a pymes):
-1. **Resolucion de numeracion por negocio** — prefijo, rango autorizado, vigencia y clave tecnica que entrega la DIAN
-2. **Corregir y reenviar rechazadas; notas credito** — anular o corregir facturas validadas
-3. **Adaptador Plemsi (o Aliaddo)** — `DIAN_PROVIDER=plemsi`; requiere cuenta del proveedor
-4. **Tests de frontend** — Vitest + Testing Library en `client`
+1. **Corregir y reenviar rechazadas; notas credito** — anular o corregir facturas validadas
+2. **Adaptador Plemsi (o Aliaddo)** — `DIAN_PROVIDER=plemsi`; requiere cuenta del proveedor
+3. **Tests de frontend** — Vitest + Testing Library en `client`

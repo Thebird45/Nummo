@@ -6,6 +6,7 @@ import facturasRoutes from "./facturas.js";
 import inventarioRoutes from "./inventario.js";
 import productosRoutes from "./productos.js";
 import reportesRoutes from "./reportes.js";
+import resolucionesRoutes from "./resoluciones.js";
 import ventasRoutes from "./ventas.js";
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.use("/ventas", ventasRoutes);
 router.use("/facturas", facturasRoutes);
 router.use("/reportes", reportesRoutes);
 router.use("/clientes", clientesRoutes);
+router.use("/resoluciones", resolucionesRoutes);
 
 router.get("/health", (_req, res) => {
   return res.status(200).json({ status: "ok", service: "nummo-api" });

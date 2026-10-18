@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  Settings,
   ShoppingCart,
   Users
 } from "lucide-react";
@@ -15,7 +16,8 @@ const links = [
   { to: "/ventas", label: "Punto de Venta", icon: ShoppingCart },
   { to: "/facturas", label: "Facturacion", icon: FileText },
   { to: "/reportes", label: "Reportes", icon: BarChart2 },
-  { to: "/clientes", label: "Clientes", icon: Users }
+  { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/configuracion", label: "Configuracion", icon: Settings }
 ];
 
 export default function Sidebar({ onLogout }) {

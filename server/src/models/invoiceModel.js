@@ -1,7 +1,6 @@
 import { pool } from "../db/pool.js";
 import { desglosarIva } from "../services/iva.js";
 
-const PREFIJO = "FE";
 // Documento que la DIAN usa para "consumidor final"
 const CONSUMIDOR_FINAL = "222222222222";
 
@@ -58,16 +57,42 @@ export async function createInvoiceFromSale({ businessId, saleId }) {
       [saleId]
     );
 
+    // Numeracion autorizada por la DIAN: la resolucion activa del negocio
+    const resolucionResult = await client.query(
+      `
+      SELECT
+        id, numero_resolucion, to_char(fecha_resolucion, 'YYYY-MM-DD') AS fecha_resolucion,
+        prefijo, rango_desde, rango_hasta, clave_tecnica,
+        to_char(vigencia_desde, 'YYYY-MM-DD') AS vigencia_desde,
+        to_char(vigencia_hasta, 'YYYY-MM-DD') AS vigencia_hasta,
+        CURRENT_DATE BETWEEN vigencia_desde AND vigencia_hasta AS vigente
+      FROM resoluciones_facturacion
+      WHERE business_id = $1
+        AND activa
+      `,
+      [businessId]
+    );
+    const resolucion = resolucionResult.rows[0];
+    if (!resolucion) {
+      throw new Error("SIN_RESOLUCION");
+    }
+    if (!resolucion.vigente) {
+      throw new Error("RESOLUCION_NO_VIGENTE");
+    }
+
     const numeroResult = await client.query(
       `
-      SELECT COALESCE(MAX(numero), 0) + 1 AS siguiente
+      SELECT GREATEST(COALESCE(MAX(numero), 0) + 1, $3) AS siguiente
       FROM invoices
       WHERE business_id = $1
         AND prefijo = $2
       `,
-      [businessId, PREFIJO]
+      [businessId, resolucion.prefijo, resolucion.rango_desde]
     );
     const numero = Number(numeroResult.rows[0].siguiente);
+    if (numero > Number(resolucion.rango_hasta)) {
+      throw new Error("RANGO_AGOTADO");
+    }
 
     const iva = desglosarIva(
       itemsResult.rows.map((item) => ({
@@ -103,20 +128,39 @@ export async function createInvoiceFromSale({ businessId, saleId }) {
       subtotal: iva.subtotal,
       impuestos: iva.impuestos,
       total_iva: iva.total_iva,
-      total: Number(sale.total)
+      total: Number(sale.total),
+      resolucion: {
+        numero: resolucion.numero_resolucion,
+        fecha: resolucion.fecha_resolucion,
+        prefijo: resolucion.prefijo,
+        desde: Number(resolucion.rango_desde),
+        hasta: Number(resolucion.rango_hasta),
+        vigencia_desde: resolucion.vigencia_desde,
+        vigencia_hasta: resolucion.vigencia_hasta
+      }
     };
 
     const invoiceResult = await client.query(
       `
-      INSERT INTO invoices (business_id, sale_id, prefijo, numero, total, customer_email, dian_payload)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO invoices (business_id, sale_id, prefijo, numero, total, customer_email, dian_payload, resolucion_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id, prefijo, numero, sale_id, status, total, customer_email, dian_payload, created_at
       `,
-      [businessId, saleId, PREFIJO, numero, payload.total, payload.cliente.correo, JSON.stringify(payload)]
+      [
+        businessId,
+        saleId,
+        resolucion.prefijo,
+        numero,
+        payload.total,
+        payload.cliente.correo,
+        JSON.stringify(payload),
+        resolucion.id
+      ]
     );
 
     await client.query("COMMIT");
-    return invoiceResult.rows[0];
+    // La clave tecnica no se guarda en la factura: solo la usa el proveedor para el CUFE
+    return { ...invoiceResult.rows[0], clave_tecnica: resolucion.clave_tecnica };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

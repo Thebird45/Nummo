@@ -164,3 +164,23 @@ ALTER TABLE invoices ADD COLUMN IF NOT EXISTS enviada_at TIMESTAMPTZ;
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cufe VARCHAR(96);
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS dian_ambiente VARCHAR(1);
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS dian_respuesta JSONB;
+
+-- Autorizacion de numeracion de la DIAN (una activa por negocio)
+CREATE TABLE IF NOT EXISTS resoluciones_facturacion (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  numero_resolucion VARCHAR(30) NOT NULL,
+  fecha_resolucion DATE NOT NULL,
+  prefijo VARCHAR(4) NOT NULL DEFAULT '',
+  rango_desde BIGINT NOT NULL CHECK (rango_desde > 0),
+  rango_hasta BIGINT NOT NULL,
+  vigencia_desde DATE NOT NULL,
+  vigencia_hasta DATE NOT NULL,
+  clave_tecnica VARCHAR(100),
+  activa BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (rango_hasta >= rango_desde),
+  CHECK (vigencia_hasta >= vigencia_desde)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_resolucion_activa ON resoluciones_facturacion(business_id) WHERE activa;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS resolucion_id UUID REFERENCES resoluciones_facturacion(id);
